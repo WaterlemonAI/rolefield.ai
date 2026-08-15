@@ -1,143 +1,131 @@
 "use client";
 
+import Image from "next/image";
 import { FormEvent, useMemo, useState } from "react";
 
 type Locale = "en" | "ar";
+type AgentId = "hamdan" | "noura" | "adam";
 
-const countries = [
-  ["UAE", "Arabic · English · Hindi · Urdu"],
-  ["KSA", "Arabic · English"],
-  ["Qatar", "Arabic · English"],
-  ["Oman", "Arabic · English · Hindi"],
-  ["Kuwait", "Arabic · English"],
-  ["Bahrain", "Arabic · English"],
+const agents = [
+  { id: "hamdan" as AgentId, name: "Hamdan", arabic: "حمدان", language: "UAE Arabic", role: "Customer care", roles: "Banking · Real estate", image: "/agents/hamdan.png", alt: "Pixel portrait of Hamdan, a UAE Arabic AI voice agent in Emirati attire" },
+  { id: "noura" as AgentId, name: "Noura", arabic: "نورة", language: "UAE Arabic", role: "Appointments", roles: "Hospitality · Support", image: "/agents/noura.png", alt: "Pixel portrait of Noura, a UAE Arabic female AI voice agent" },
+  { id: "adam" as AgentId, name: "Adam", arabic: "آدم", language: "English + Arabic", role: "Enterprise sales", roles: "Qualification · Scheduling", image: "/agents/adam.png", alt: "Pixel portrait of Adam, a bilingual enterprise sales AI voice agent" },
 ];
 
 const useCases = [
-  { n: "01", tag: "BANKING & FINTECH", title: "Collections that protect the relationship.", copy: "Natural reminders, promise-to-pay capture and compliant escalation in Arabic and English.", metric: "34%", label: "more promises captured" },
-  { n: "02", tag: "HEALTHCARE", title: "Every patient gets an answer.", copy: "Bookings, confirmations and follow-ups that understand Gulf accents and switch languages naturally.", metric: "24/7", label: "patient access" },
-  { n: "03", tag: "LOGISTICS", title: "Last-mile conversations, resolved.", copy: "Address confirmation, delivery coordination and exception handling across the GCC.", metric: "41%", label: "fewer failed drops" },
-  { n: "04", tag: "HOSPITALITY", title: "Service that sounds local.", copy: "Reservations, guest requests and multilingual concierge support with brand-safe responses.", metric: "6", label: "GCC markets ready" },
+  { tag: "SUPPORT", title: "Customer support", problem: "Queues grow while routine requests repeat.", action: "Answers, verifies and resolves across languages.", outcome: "Faster resolution with human escalation.", agent: "noura" },
+  { tag: "REVENUE", title: "Lead qualification", problem: "Sales teams lose time on unqualified enquiries.", action: "Engages, qualifies and updates your CRM.", outcome: "More sales-ready conversations.", agent: "adam" },
+  { tag: "OPERATIONS", title: "Appointment booking", problem: "Manual scheduling creates missed opportunities.", action: "Finds availability, books and confirms.", outcome: "Full calendars with less admin.", agent: "noura" },
+  { tag: "FINANCE", title: "Collections", problem: "Payment follow-ups are repetitive and sensitive.", action: "Calls naturally and captures commitments.", outcome: "Consistent follow-up without losing trust.", agent: "hamdan" },
+  { tag: "HOSPITALITY", title: "Guest concierge", problem: "Guests expect immediate, local service.", action: "Handles requests, bookings and follow-ups.", outcome: "Round-the-clock guest care.", agent: "noura" },
+  { tag: "PROPERTY", title: "Real estate enquiries", problem: "High lead volume makes response times uneven.", action: "Answers questions and schedules viewings.", outcome: "Every serious buyer gets a response.", agent: "hamdan" },
+  { tag: "BANKING", title: "Banking assistance", problem: "Customers need fast answers with clear controls.", action: "Guides routine requests and escalates exceptions.", outcome: "Accessible service with human oversight.", agent: "hamdan" },
+  { tag: "LOGISTICS", title: "Order & delivery", problem: "Address and delivery exceptions drive call volume.", action: "Confirms details and coordinates changes.", outcome: "Fewer failed deliveries.", agent: "adam" },
 ];
 
-const dates = Array.from({ length: 16 }, (_, i) => {
-  const date = new Date();
-  date.setDate(date.getDate() + i + 1);
-  return date;
-}).filter((date) => ![5, 6].includes(date.getDay())).slice(0, 8);
-
+const dates = Array.from({ length: 16 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i + 1); return d; }).filter(d => ![5, 6].includes(d.getDay())).slice(0, 8);
 const slots = ["10:00", "10:30", "11:00", "11:30", "14:00", "14:30", "15:00", "15:30", "16:00"];
+
+const copy = {
+  en: {
+    nav: ["Platform", "Agents", "Use cases", "Languages", "Security"],
+    eyebrow: "ENTERPRISE VOICE AI, BUILT FOR THE GCC",
+    title: <>Arabic AI agents that <em>sound local</em> and get the work done.</>,
+    lede: "Deploy human-like voice agents for sales, support, bookings, collections and customer care, with regional Arabic dialects and direct integration into your business systems.",
+    talk: "Talk to an agent", demo: "Book a demo", trust: "Customer data stays in the region.",
+    agentsTitle: <>Meet your <em>AI workforce.</em></>, agentsText: "Choose an agent, language and role, then start a real conversation.",
+  },
+  ar: {
+    nav: ["المنصة", "الوكلاء", "حالات الاستخدام", "اللغات", "الأمان"],
+    eyebrow: "ذكاء صوتي للمؤسسات، مصمم للخليج",
+    title: <>وكلاء ذكاء اصطناعي بالعربية <em>بلهجة محلية</em> ينجزون العمل.</>,
+    lede: "انشر وكلاء صوتيين بتجربة بشرية للمبيعات والدعم والحجوزات والتحصيل وخدمة العملاء، بلهجات عربية إقليمية وتكامل مباشر مع أنظمة أعمالك.",
+    talk: "تحدث مع وكيل", demo: "احجز عرضاً", trust: "بيانات العملاء تبقى داخل المنطقة.",
+    agentsTitle: <>تعرّف على <em>فريقك الذكي.</em></>, agentsText: "اختر الوكيل واللغة والدور، ثم ابدأ محادثة حقيقية.",
+  },
+};
+
+function Mark() { return <span className="brand-mark" aria-hidden="true"><i/><i/><i/></span>; }
 
 export default function Home() {
   const [locale, setLocale] = useState<Locale>("en");
+  const [menu, setMenu] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<AgentId>("hamdan");
+  const [listening, setListening] = useState<AgentId | null>(null);
+  const [conversation, setConversation] = useState<AgentId | null>(null);
+  const [useCase, setUseCase] = useState(0);
+  const [dialect, setDialect] = useState("UAE Arabic");
+  const [voice, setVoice] = useState("Warm & professional");
+  const [role, setRole] = useState("Customer care");
   const [scheduler, setScheduler] = useState(false);
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(dates[0]);
   const [selectedTime, setSelectedTime] = useState("10:00");
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
-
+  const t = copy[locale];
   const dateKey = useMemo(() => selectedDate.toISOString().slice(0, 10), [selectedDate]);
 
-  function openScheduler() {
-    setScheduler(true);
-    setStep(1);
-    setStatus("idle");
-  }
-
+  function openScheduler() { setScheduler(true); setStep(1); setStatus("idle"); setMenu(false); }
+  function chooseAgent(id: AgentId) { setSelectedAgent(id); setConversation(null); }
+  function listen(id: AgentId) { setSelectedAgent(id); setListening(current => current === id ? null : id); }
   async function submitDemo(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setStatus("saving");
-    const form = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(form.entries());
+    event.preventDefault(); setStatus("saving");
+    const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
     try {
-      const response = await fetch("/api/demos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, date: dateKey, time: selectedTime }),
-      });
-      if (!response.ok) throw new Error("Booking failed");
-      setStatus("done");
-    } catch {
-      setStatus("error");
-    }
+      const response = await fetch("/api/demos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, date: dateKey, time: selectedTime }) });
+      if (!response.ok) throw new Error(); setStatus("done");
+    } catch { setStatus("error"); }
   }
 
-  return (
-    <main dir={locale === "ar" ? "rtl" : "ltr"}>
-      <header className="nav-shell">
-        <a className="brand" href="#top" aria-label="RoleField home"><span className="brand-mark"><i /><i /><i /></span>RoleField</a>
-        <nav aria-label="Primary navigation">
-          <a href="#platform">Platform</a><a href="#use-cases">Use cases</a><a href="#languages">Languages</a><a href="#security">Security</a>
-        </nav>
-        <div className="nav-actions">
-          <button className="locale" onClick={() => setLocale(locale === "en" ? "ar" : "en")} aria-label="Switch language">{locale === "en" ? "العربية" : "English"}</button>
-          <button className="primary small" onClick={openScheduler}>Book a demo <span>↗</span></button>
-        </div>
-      </header>
+  return <main dir={locale === "ar" ? "rtl" : "ltr"} className={locale === "ar" ? "rtl" : "ltr"}>
+    <header className="site-nav">
+      <a className="brand" href="#top" aria-label="RoleField home"><Mark/>RoleField</a>
+      <button className="menu-toggle" aria-expanded={menu} aria-controls="main-nav" onClick={() => setMenu(!menu)}><span/><span/><span/><b>{locale === "en" ? "Menu" : "القائمة"}</b></button>
+      <nav id="main-nav" className={menu ? "open" : ""} aria-label="Primary navigation">
+        {["platform","agents","use-cases","languages","security"].map((id,i)=><a key={id} href={`#${id}`} onClick={()=>setMenu(false)}>{t.nav[i]}</a>)}
+        <div className="mobile-nav-actions"><button onClick={()=>setLocale(locale === "en" ? "ar" : "en")}>{locale === "en" ? "العربية" : "English"}</button><button onClick={openScheduler}>{t.demo}</button></div>
+      </nav>
+      <div className="nav-actions"><button className="language-switch" onClick={()=>setLocale(locale === "en" ? "ar" : "en")}>{locale === "en" ? "العربية" : "English"}</button><button className="button dark compact" onClick={openScheduler}>{t.demo}</button></div>
+    </header>
 
-      <section className="hero grid-bg" id="top">
-        <div className="hero-copy">
-          <p className="eyebrow"><span /> {locale === "en" ? "ENTERPRISE VOICE AI, BUILT FOR THE GCC" : "ذكاء صوتي للمؤسسات، مصمم للخليج"}</p>
-          <h1>{locale === "en" ? <>Scale conversations.<em>Not headcount.</em></> : <>وسّع محادثاتك.<em>وليس فريقك.</em></>}</h1>
-          <p className="lede">{locale === "en" ? "Human-like voice agents that resolve customer conversations across the GCC—deployed in-region, connected to your systems and measured against real business outcomes." : "وكلاء صوتيون بتجربة بشرية يديرون محادثات العملاء في دول الخليج، باستضافة إقليمية وتكامل مباشر مع أنظمتك ونتائج أعمال قابلة للقياس."}</p>
-          <div className="hero-actions"><button className="primary" onClick={openScheduler}>Book your GCC demo</button><a href="#platform">Hear RoleField <span>↓</span></a></div>
-          <p className="trust-line"><span /> CUSTOMER DATA STAYS IN THE REGION</p>
-        </div>
-        <div className="voice-orbit" aria-label="Live RoleField call interface">
-          <div className="orbit orbit-a" /><div className="orbit orbit-b" />
-          <div className="region-tag tag-one"><small>UAE</small><b>العربية</b></div>
-          <div className="region-tag tag-two"><small>KSA</small><b>Khaleeji Arabic</b></div>
-          <div className="region-tag tag-three"><small>QATAR</small><b>English</b></div>
-          <div className="call-card">
-            <div className="call-head"><span><i /> LIVE CUSTOMER CALL</span><b>00:42</b></div>
-            <div className="wave">{[18,32,48,25,62,38,70,28,55,34,49,24,42,20].map((h,i)=><i key={i} style={{height:h}} />)}</div>
-            <div className="detected"><small>LANGUAGE DETECTED</small><strong>العربية</strong><span>Gulf dialect · Context retained</span></div>
-            <div className="outcome"><small>OUTCOME</small><b>Appointment confirmed</b><span>CRM updated ✓</span></div>
-          </div>
-          <p className="orbit-caption">ONE ENGINE. EVERY GCC VOICE.</p>
-        </div>
-      </section>
+    <section className="hero technical-grid" id="top">
+      <div className="hero-copy">
+        <p className="eyebrow"><i/> {t.eyebrow}</p>
+        <h1>{t.title}</h1><p className="lede">{t.lede}</p>
+        <div className="hero-ctas"><a className="button teal" href="#agents">{t.talk} <span>↘</span></a><button className="button light" onClick={openScheduler}>{t.demo}</button></div>
+        <p className="trust"><i/> {t.trust}</p>
+        <div className="proof-points"><span>Arabic-native</span><span>Regional dialects</span><span>In-region deployment</span><span>Enterprise integrations</span><span>Human escalation</span></div>
+      </div>
+      <div className="hero-art"><Image src="/rolefield-gcc-office.png" alt="Isometric GCC workplace with local AI agents supporting banking, hospitality, logistics, sales and customer service" width={1692} height={929} priority sizes="(max-width: 800px) 100vw, 62vw" /></div>
+    </section>
 
-      <section className="proof-strip"><span>BUILT FOR REGIONAL OPERATIONS</span><b>Arabic-native</b><b>In-region deployment</b><b>Enterprise integrations</b><b>Human escalation</b></section>
+    <section className="agent-section section" id="agents">
+      <header className="section-heading"><div><p className="eyebrow"><i/> YOUR LOCALLY FLUENT AI TEAM</p><h2>{t.agentsTitle}</h2></div><p>{t.agentsText}</p></header>
+      <div className="agent-grid">
+        {agents.map(agent => <article key={agent.id} className={`agent-card ${selectedAgent===agent.id?"selected":""}`} onClick={()=>chooseAgent(agent.id)}>
+          <div className="agent-status"><span><i/>{selectedAgent===agent.id?"SELECTED":"READY"}</span><small>{agent.language}</small></div>
+          <div className="portrait"><Image src={agent.image} alt={agent.alt} width={1312} height={1285} sizes="(max-width: 700px) 80vw, 30vw" /></div>
+          <div className="agent-details"><div><p>{agent.role}</p><h3>{agent.name}<small>{agent.arabic}</small></h3><span>{agent.roles}</span></div><div className="agent-buttons"><button aria-label={`Listen to ${agent.name}`} onClick={(e)=>{e.stopPropagation();listen(agent.id)}} className={listening===agent.id?"listening":""}>{listening===agent.id?<><i className="sound-bars"/>Listening</>:<>▶ Listen</>}</button><button onClick={(e)=>{e.stopPropagation();setConversation(agent.id)}}>Start conversation ↗</button></div></div>
+          <span className="pixel-corner a"/><span className="pixel-corner b"/>
+        </article>)}
+      </div>
+      {conversation && <div className="integration-note" role="status"><div><i/><b>{agents.find(a=>a.id===conversation)?.name} is ready.</b><span>The live voice connection plugs in here. Book a working demo to speak with this agent using your own use case.</span></div><button className="button dark compact" onClick={openScheduler}>Book live session</button></div>}
+    </section>
 
-      <section className="section intro" id="platform">
-        <div><p className="eyebrow"><span /> THE ROLEFIELD PLATFORM</p><h2>Conversations that move<br/><em>business forward.</em></h2></div>
-        <div><p>RoleField voice agents listen, reason and act across the customer journey—without forcing your customers through menus, scripts or awkward handoffs.</p><div className="stats"><div><b>&lt;500ms</b><span>response latency</span></div><div><b>99.9%</b><span>platform availability</span></div><div><b>24/7</b><span>multilingual coverage</span></div></div></div>
-      </section>
+    <section className="platform-section" id="platform"><div className="platform-copy"><p className="eyebrow light"><i/> THE ROLEFIELD PLATFORM</p><h2>Not a chatbot<br/>with a voice.</h2><p>RoleField listens, reasons and acts across the customer journey—handling interruptions, switching languages, completing actions in your systems and bringing in your team when judgement is needed.</p><div className="platform-facts"><div><b>Sub-second</b><span>natural response flow</span></div><div><b>Human-like</b><span>interruptions and handoffs</span></div><div><b>Connected</b><span>CRM and workflow actions</span></div></div></div><div className="control-room"><div className="control-top"><span>ROLEFIELD CONTROL ROOM</span><i>● LIVE OPERATIONS</i></div><div className="control-kpis"><div><small>CONVERSATIONS</small><b>Live</b><span>Monitor every active agent</span></div><div><small>OUTCOMES</small><b>Visible</b><span>Track intent, action and result</span></div></div><div className="conversation-rows"><p><i/><b>Arabic · Customer care</b><span>Intent understood</span><em>CRM updated</em></p><p><i/><b>English · Lead qualification</b><span>Qualified opportunity</span><em>Sales notified</em></p><p><i/><b>Khaleeji · Booking</b><span>Availability checked</span><em>Confirmed</em></p></div></div></section>
 
-      <section className="workflow-section grid-bg">
-        <div className="workflow-ui">
-          <div className="workflow-top"><span>LIVE OPERATIONS</span><b>RoleField Control Room</b><i>● 12 agents online</i></div>
-          <div className="workflow-body">
-            <aside><b>Overview</b><span>Live calls</span><span>Agent library</span><span>Knowledge</span><span>Analytics</span><span>Integrations</span></aside>
-            <div className="dashboard"><div className="dash-head"><div><small>ACTIVE CONVERSATIONS</small><strong>148</strong><em>↑ 18% today</em></div><div className="mini-chart">{[38,62,45,74,55,82,68,91,78,96,72,88].map((h,i)=><i key={i} style={{height:h+"%"}} />)}</div></div><div className="calls"><span><i className="live"/>Fatima A. <small>Arabic · Billing</small><b>02:18</b></span><span><i className="live"/>Ahmed K. <small>English · Booking</small><b>01:44</b></span><span><i/>Priya S. <small>Hindi · Delivery</small><b>Resolved</b></span></div></div>
-          </div>
-        </div>
-        <div className="workflow-copy"><p className="eyebrow"><span /> FROM HELLO TO RESOLUTION</p><h2>Not a chatbot<br/>with a voice.</h2><p>RoleField understands intent, retrieves context, completes actions and knows when to bring in your team.</p><ol><li><b>01</b><span><strong>Listen naturally</strong>Interruptions, accents and code-switching included.</span></li><li><b>02</b><span><strong>Act in your systems</strong>CRM, booking, payment and support workflows.</span></li><li><b>03</b><span><strong>Improve continuously</strong>Every outcome is measured and reviewable.</span></li></ol></div>
-      </section>
+    <section className="usecase-section section" id="use-cases"><header className="section-heading"><div><p className="eyebrow"><i/> PRACTICAL BUSINESS OUTCOMES</p><h2>One workforce.<br/><em>Eight roles.</em></h2></div><p>Select a workflow to see the problem, action and outcome.</p></header><div className="usecase-layout"><div className="usecase-tabs" role="tablist">{useCases.map((item,i)=><button key={item.title} role="tab" aria-selected={useCase===i} onClick={()=>setUseCase(i)}><span>{String(i+1).padStart(2,"0")}</span><b>{item.title}</b><small>{item.tag}</small></button>)}</div><article className="usecase-detail"><div className="usecase-agent"><Image src={agents.find(a=>a.id===useCases[useCase].agent)?.image || agents[0].image} alt="Selected RoleField agent" width={1312} height={1285}/></div><p className="eyebrow"><i/> {useCases[useCase].tag}</p><h3>{useCases[useCase].title}</h3><dl><div><dt>THE PROBLEM</dt><dd>{useCases[useCase].problem}</dd></div><div><dt>ROLEFIELD DOES</dt><dd>{useCases[useCase].action}</dd></div><div><dt>THE OUTCOME</dt><dd>{useCases[useCase].outcome}</dd></div></dl></article></div></section>
 
-      <section className="section use-cases" id="use-cases">
-        <div className="section-head"><div><p className="eyebrow"><span /> GCC USE CASES</p><h2>Built around the calls<br/><em>your teams handle every day.</em></h2></div><p>Deploy one focused workflow or orchestrate the entire customer journey.</p></div>
-        <div className="case-grid">{useCases.map((item)=><article key={item.n}><div className="case-top"><span>{item.n}</span><small>{item.tag}</small></div><h3>{item.title}</h3><p>{item.copy}</p><div className="metric"><b>{item.metric}</b><span>{item.label}</span></div></article>)}</div>
-      </section>
+    <section className="how-section"><header><p className="eyebrow light"><i/> HOW IT WORKS</p><h2>From role to resolution<br/>in three clear steps.</h2></header><ol><li><span>01</span><div className="step-marker"><i/><i/><i/></div><h3>Choose a role and dialect</h3><p>Select the voice, regional language and business outcome your agent owns.</p></li><li><span>02</span><div className="step-marker connect"><i/><i/><i/></div><h3>Connect systems and knowledge</h3><p>Link approved content, CRM data, booking tools and operating workflows.</p></li><li><span>03</span><div className="step-marker deploy"><i/><i/><i/></div><h3>Deploy across calls and channels</h3><p>Launch, monitor outcomes and escalate to your team whenever needed.</p></li></ol></section>
 
-      <section className="region-stories" aria-label="RoleField in the GCC">
-        <figure className="region-photo team-photo"><figcaption><span>01 / UAE OPERATIONS</span><b>Designed with regional teams,<br/>for regional conversations.</b><small>Photo: Kristina Spremo / Unsplash</small></figcaption></figure>
-        <figure className="region-photo city-photo"><figcaption><span>02 / BUILT IN THE UAE</span><b>One platform for the<br/>GCC’s connected economy.</b><small>Photo: Kate Trysh / Unsplash</small></figcaption></figure>
-      </section>
+    <section className="language-section technical-grid" id="languages"><div className="language-intro"><p className="eyebrow"><i/> LANGUAGE INTELLIGENCE</p><h2>Local fluency is<br/><em>the product.</em></h2><p>Dialect, voice and role are independent controls. Build the right agent for every customer journey without tying language to appearance.</p><div className="arabic-sample" lang="ar" dir="rtl">أهلاً وسهلاً، كيف أقدر أساعدك اليوم؟<small>Natural Gulf Arabic · Context retained</small></div></div><div className="language-builder"><div className="builder-head"><span>CONFIGURE AN AGENT</span><i>● READY</i></div><fieldset><legend>1. Dialect</legend>{["UAE Arabic","Saudi Arabic","Khaleeji Arabic","Modern Standard Arabic","English","Hindi / Urdu"].map(x=><button key={x} className={dialect===x?"active":""} onClick={()=>setDialect(x)}>{x}</button>)}</fieldset><fieldset><legend>2. Voice</legend>{["Warm & professional","Calm & reassuring","Clear & direct"].map(x=><button key={x} className={voice===x?"active":""} onClick={()=>setVoice(x)}>{x}</button>)}</fieldset><fieldset><legend>3. Role</legend>{["Customer care","Sales","Bookings","Collections"].map(x=><button key={x} className={role===x?"active":""} onClick={()=>setRole(x)}>{x}</button>)}</fieldset><div className="builder-result"><Image src={agents.find(a=>a.id===selectedAgent)?.image || agents[0].image} alt="Configured RoleField agent" width={1312} height={1285}/><div><small>YOUR CONFIGURATION</small><b>{dialect}</b><span>{voice} · {role}</span></div></div></div></section>
 
-      <section className="language-section" id="languages">
-        <div className="language-copy"><p className="eyebrow light"><span /> LANGUAGE INTELLIGENCE</p><h2>Arabic first.<br/><em>Multilingual by design.</em></h2><p>RoleField handles Modern Standard Arabic, Gulf dialects and the languages your customers switch between—within the same call.</p><div className="quote-ar">“أهلاً وسهلاً، كيف أقدر أساعدك اليوم؟”<small>Natural Gulf Arabic · Brand vocabulary retained</small></div></div>
-        <div className="country-list">{countries.map(([country,languages],i)=><div key={country}><span>0{i+1}</span><b>{country}</b><p>{languages}</p><i>↗</i></div>)}</div>
-      </section>
+    <section className="security-section section" id="security"><div><p className="eyebrow"><i/> ENTERPRISE CONTROL</p><h2>Regional by design.<br/><em>Secure by default.</em></h2><p>Choose UAE or Saudi hosting, control every integration and keep a reviewable record of what your agents heard, decided and did.</p><button className="button light" onClick={openScheduler}>Discuss your requirements ↗</button></div><div className="security-list"><article><span>01</span><div><b>In-region deployment</b><p>UAE and Saudi hosting options for customer data and recordings.</p></div></article><article><span>02</span><div><b>Private integrations</b><p>Least-privilege access to CRM, telephony and core business systems.</p></div></article><article><span>03</span><div><b>Human in control</b><p>Clear escalation rules, approval paths and conversation review.</p></div></article><article><span>04</span><div><b>Measurable governance</b><p>Outcome analytics, quality monitoring and auditable action records.</p></div></article></div></section>
 
-      <section className="section security" id="security"><div><p className="eyebrow"><span /> ENTERPRISE CONTROL</p><h2>Regional by design.<br/><em>Secure by default.</em></h2><p>Choose UAE or KSA data residency, control every integration, and keep a complete audit trail of what your agents heard, decided and did.</p><button className="outline" onClick={openScheduler}>Discuss your requirements ↗</button></div><div className="security-grid"><article><span>01</span><b>In-region deployment</b><p>UAE and Saudi hosting options for customer data and recordings.</p></article><article><span>02</span><b>Private integrations</b><p>Least-privilege access to your CRM, telephony and core systems.</p></article><article><span>03</span><b>Human-in-control</b><p>Clear escalation rules, approval paths and full conversation review.</p></article><article><span>04</span><b>Measurable governance</b><p>Outcome analytics, quality scoring and auditable action logs.</p></article></div></section>
+    <section className="final-cta technical-grid"><div><p className="eyebrow"><i/> READY FOR A REAL CONVERSATION?</p><h2>Your next customer conversation can be handled by <em>RoleField.</em></h2><div><a href="#agents" className="button teal">Talk to an agent ↘</a><button className="button dark" onClick={openScheduler}>Book a GCC demo</button></div></div><div className="cta-agents"><Image src="/agents/noura.png" alt="Noura, RoleField AI agent" width={1224} height={1285}/><Image src="/agents/hamdan.png" alt="Hamdan, RoleField AI agent" width={1312} height={1199}/><Image src="/agents/adam.png" alt="Adam, RoleField AI agent" width={1312} height={1199}/></div></section>
 
-      <section className="cta grid-bg"><p className="eyebrow"><span /> SEE IT IN YOUR WORKFLOW</p><h2>Bring us one call.<br/><em>We’ll show you the agent.</em></h2><p>Book a 30-minute working session with our UAE team. Choose your language, use case and time.</p><button className="primary" onClick={openScheduler}>Schedule your demo ↗</button></section>
+    <footer><div className="footer-main"><div><a className="brand" href="#top"><Mark/>RoleField</a><p>Arabic and multilingual AI voice agents for organisations across the GCC.</p><small>A company by AI7Lab, UAE.</small></div><div><b>EXPLORE</b><a href="#platform">Platform</a><a href="#agents">Agents</a><a href="#use-cases">Use cases</a></div><div><b>CAPABILITIES</b><a href="#languages">Languages</a><a href="#security">Security</a><button onClick={openScheduler}>Book a demo</button></div><div><b>CONTACT</b><a href="mailto:hello@rolefield.ai">hello@rolefield.ai</a><p>Dubai, United Arab Emirates</p></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} RoleField</span><span>Built in the UAE for the GCC</span></div></footer>
 
-      <footer><div className="footer-brand"><a className="brand" href="#top"><span className="brand-mark"><i/><i/><i/></span>RoleField</a><p>Enterprise voice agents for the GCC.<br/>A company by AI7Lab, UAE.</p></div><div><small>EXPLORE</small><a href="#platform">Platform</a><a href="#use-cases">Use cases</a><a href="#languages">Languages</a></div><div><small>COMPANY</small><a href="mailto:hello@rolefield.ai">hello@rolefield.ai</a><button onClick={openScheduler}>Book a demo</button></div><div><small>REGION</small><p>Dubai, United Arab Emirates<br/>Serving the GCC</p></div><p className="copyright">© {new Date().getFullYear()} RoleField · A company by AI7Lab, UAE</p></footer>
-
-      {scheduler && <div className="modal-backdrop" role="presentation" onMouseDown={(e)=>e.target===e.currentTarget&&setScheduler(false)}><div className="scheduler" role="dialog" aria-modal="true" aria-labelledby="schedule-title"><button className="close" onClick={()=>setScheduler(false)} aria-label="Close">×</button>{status === "done" ? <div className="success"><span>✓</span><p className="eyebrow">DEMO CONFIRMED</p><h2>You’re booked.</h2><p>We’ve reserved {selectedTime} Gulf time on {selectedDate.toLocaleDateString("en-GB", {weekday:"long",day:"numeric",month:"long"})}. A RoleField specialist will contact you with the meeting details.</p><button className="primary" onClick={()=>setScheduler(false)}>Done</button></div> : <><p className="eyebrow"><span /> BOOK A ROLEFIELD DEMO</p><h2 id="schedule-title">Choose a time for your GCC use case.</h2><p className="modal-lede">30 minutes with our UAE team · English or Arabic</p>{step===1 ? <div className="slot-picker"><label>Select a date</label><div className="dates">{dates.map(date=><button key={date.toISOString()} className={date.toDateString()===selectedDate.toDateString()?"selected":""} onClick={()=>setSelectedDate(date)}><small>{date.toLocaleDateString("en-GB",{weekday:"short"})}</small><b>{date.getDate()}</b><span>{date.toLocaleDateString("en-GB",{month:"short"})}</span></button>)}</div><label>Select a time <small>Gulf Standard Time (UTC+4)</small></label><div className="times">{slots.map(time=><button key={time} className={time===selectedTime?"selected":""} onClick={()=>setSelectedTime(time)}>{time}</button>)}</div><button className="primary continue" onClick={()=>setStep(2)}>Continue <span>→</span></button></div> : <form onSubmit={submitDemo}><button type="button" className="back" onClick={()=>setStep(1)}>← Change time</button><div className="chosen"><b>{selectedDate.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</b><span>{selectedTime} GST · 30 minutes</span></div><div className="form-grid"><label>Your name<input name="name" required autoComplete="name" /></label><label>Work email<input name="email" type="email" required autoComplete="email" /></label><label>Company<input name="company" required autoComplete="organization" /></label><label>Phone<input name="phone" type="tel" required autoComplete="tel" placeholder="+971" /></label><label>Preferred language<select name="language"><option>English</option><option>العربية (Arabic)</option><option>Both</option></select></label><label>Primary use case<select name="useCase"><option>Customer service</option><option>Collections</option><option>Booking & scheduling</option><option>Sales qualification</option><option>Delivery & logistics</option><option>Other</option></select></label><label className="full">Other attendees (optional)<input name="attendees" type="text" placeholder="colleague@company.com" /></label><label className="full">What should we demonstrate?<textarea name="notes" rows={3} placeholder="Tell us about the call workflow you want to automate." /></label></div>{status==="error"&&<p className="form-error">We couldn’t save the booking. Please try again.</p>}<button className="primary submit" disabled={status==="saving"}>{status==="saving"?"Confirming…":"Confirm demo"}</button></form>}</>}</div></div>}
-    </main>
-  );
+    {scheduler && <div className="modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&setScheduler(false)}><div className="scheduler" role="dialog" aria-modal="true" aria-labelledby="schedule-title"><button className="close" onClick={()=>setScheduler(false)} aria-label="Close">×</button>{status==="done"?<div className="success"><span>✓</span><p className="eyebrow">DEMO CONFIRMED</p><h2>You’re booked.</h2><p>We’ve reserved {selectedTime} Gulf time on {selectedDate.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}. A RoleField specialist will contact you with the meeting details.</p><button className="button dark" onClick={()=>setScheduler(false)}>Done</button></div>:<><p className="eyebrow"><i/> BOOK A ROLEFIELD DEMO</p><h2 id="schedule-title">Choose a time for your GCC use case.</h2><p className="modal-lede">30 minutes with our UAE team · English or Arabic</p>{step===1?<div className="slot-picker"><label>Select a date</label><div className="dates">{dates.map(d=><button key={d.toISOString()} className={d.toDateString()===selectedDate.toDateString()?"selected":""} onClick={()=>setSelectedDate(d)}><small>{d.toLocaleDateString("en-GB",{weekday:"short"})}</small><b>{d.getDate()}</b><span>{d.toLocaleDateString("en-GB",{month:"short"})}</span></button>)}</div><label>Select a time <small>Gulf Standard Time (UTC+4)</small></label><div className="times">{slots.map(x=><button key={x} className={x===selectedTime?"selected":""} onClick={()=>setSelectedTime(x)}>{x}</button>)}</div><button className="button dark continue" onClick={()=>setStep(2)}>Continue <span>→</span></button></div>:<form onSubmit={submitDemo}><button type="button" className="back" onClick={()=>setStep(1)}>← Change time</button><div className="chosen"><b>{selectedDate.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</b><span>{selectedTime} GST · 30 minutes</span></div><div className="form-grid"><label>Your name<input name="name" required autoComplete="name"/></label><label>Work email<input name="email" type="email" required autoComplete="email"/></label><label>Company<input name="company" required autoComplete="organization"/></label><label>Phone<input name="phone" type="tel" required autoComplete="tel" placeholder="+971"/></label><label>Preferred language<select name="language"><option>English</option><option>العربية (Arabic)</option><option>Both</option></select></label><label>Primary use case<select name="useCase"><option>Customer service</option><option>Collections</option><option>Booking & scheduling</option><option>Sales qualification</option><option>Delivery & logistics</option><option>Other</option></select></label><label className="full">Other attendees (optional)<input name="attendees" placeholder="colleague@company.com"/></label><label className="full">What should we demonstrate?<textarea name="notes" rows={3} placeholder="Tell us about the call workflow you want to automate."/></label></div>{status==="error"&&<p className="form-error">We couldn’t save the booking. Please try again.</p>}<button className="button dark submit" disabled={status==="saving"}>{status==="saving"?"Confirming…":"Confirm demo"}</button></form>}</>}</div></div>}
+  </main>;
 }
