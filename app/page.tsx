@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable jsx-a11y/label-has-associated-control, jsx-a11y/no-static-element-interactions -- grouped date controls and dismissible backdrop */
 
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -142,10 +143,10 @@ export default function Home() {
     <section className="agent-section section" id="agents">
       <header className="section-heading"><div><p className="eyebrow"><i/> YOUR CONFIGURABLE AI WORKFORCE</p><h2>{t.agentsTitle}</h2></div><p>{t.agentsText}</p></header>
       <div className="agent-grid">
-        {agents.map(agent => <article key={agent.id} className={`agent-card ${selectedAgent===agent.id?"selected":""}`} onClick={()=>chooseAgent(agent.id)}>
+        {agents.map(agent => <article key={agent.id} className={`agent-card ${selectedAgent===agent.id?"selected":""}`}>
           <div className="agent-status"><span><i/>{selectedAgent===agent.id?"SELECTED":"READY"}</span><small>{agent.language}</small></div>
           <div className="portrait"><Image className={`agent-image ${agent.id}`} src={agent.image} alt={agent.alt} width={1312} height={1285} sizes="(max-width: 700px) 80vw, 30vw" /></div>
-          <div className="agent-details"><div><p>{agent.role}</p><h3>{agent.name}<small>{agent.arabic}</small></h3><span>{agent.roles}</span></div><div className="agent-buttons"><button aria-label={`Listen to ${agent.name}`} onClick={(e)=>{e.stopPropagation();listen(agent.id)}} className={listening===agent.id?"listening":""}>{listening===agent.id?<><i className="sound-bars"/>Listening</>:<>▶ Listen</>}</button><button onClick={(e)=>{e.stopPropagation();setConversation(agent.id)}}>Start conversation ↗</button></div></div>
+          <div className="agent-details"><div><p>{agent.role}</p><h3>{agent.name}<small>{agent.arabic}</small></h3><span>{agent.roles}</span></div><div className="agent-buttons"><button aria-label={`Listen to ${agent.name}`} onClick={()=>listen(agent.id)} className={listening===agent.id?"listening":""}>{listening===agent.id?<><i className="sound-bars"/>Listening</>:<>▶ Listen</>}</button><button onClick={()=>{chooseAgent(agent.id);setConversation(agent.id)}}>Start conversation ↗</button></div></div>
           <span className="pixel-corner a"/><span className="pixel-corner b"/>
         </article>)}
       </div>
