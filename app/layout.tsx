@@ -13,9 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://rolefield-gcc.arbaz-uddin613787.chatgpt.site"),
-  title: "RoleField — Autonomous AI Workforce for the GCC",
+  metadataBase: new URL("https://rolefield.ai"),
+  title: { default: "RoleField — Autonomous AI Workforce for the GCC", template: "%s | RoleField" },
   description: "Arabic-native, multilingual AI agents that run customer operations end to end across the GCC. A company by AI7Lab, UAE.",
+  alternates: { canonical: "/" },
+  keywords: ["AI agents", "customer operations", "voice AI", "GCC", "Arabic AI", "workflow automation"],
+  authors: [{ name: "RoleField", url: "https://rolefield.ai" }],
+  creator: "AI7Lab",
+  publisher: "AI7Lab",
   openGraph: {
     title: "RoleField — One AI workforce for every GCC customer",
     description: "Configurable multilingual agents that converse, act, follow up and improve around your business outcomes.",
@@ -44,6 +49,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          "@context": "https://schema.org", "@type": "Organization", name: "RoleField", url: "https://rolefield.ai",
+          logo: "https://rolefield.ai/rolefield-logo.png", email: "voice@ai7lab.net",
+          parentOrganization: { "@type": "Organization", name: "AI7Lab" },
+          address: { "@type": "PostalAddress", addressLocality: "Dubai", addressRegion: "DIFC", addressCountry: "AE" },
+        }).replace(/</g, "\\u003c") }} />
         {children}
       </body>
     </html>

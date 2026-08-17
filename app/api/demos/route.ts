@@ -1,4 +1,6 @@
 import { getDb } from "@/db";
+import { sendLeadEmails } from "@/lib/email";
+import { guardLeadRequest } from "@/lib/request-guard";
 
 const schemaSql = `CREATE TABLE IF NOT EXISTS demo_bookings (
   id BIGSERIAL PRIMARY KEY,
@@ -20,6 +22,8 @@ const schemaSql = `CREATE TABLE IF NOT EXISTS demo_bookings (
 
 export async function POST(request: Request) {
   try {
+    const blocked = guardLeadRequest(request, "demo", 6);
+    if (blocked) return blocked;
     const body = await request.json() as Record<string, unknown>;
     const required = ["name", "email", "company", "phone", "language", "useCase", "date", "time"];
     if (required.some((field) => typeof body[field] !== "string" || !(body[field] as string).trim())) {
@@ -30,17 +34,26 @@ export async function POST(request: Request) {
       return Response.json({ error: "Invalid email" }, { status: 400 });
     }
     const bookingId = `rf-${crypto.randomUUID().slice(0, 8)}`;
+    const lead = {
+      type: "demo" as const, leadId: bookingId, name: String(body.name).trim(), email,
+      company: String(body.company).trim(), phone: String(body.phone).trim(),
+      language: String(body.language), useCase: String(body.useCase),
+      notes: String(body.notes || "").trim(), date: String(body.date), time: String(body.time),
+    };
     const db = getDb();
     await db.query(schemaSql);
     await db.query("CREATE INDEX IF NOT EXISTS idx_demo_bookings_slot ON demo_bookings(demo_date, demo_time)");
     await db.query({ text: `INSERT INTO demo_bookings
       (booking_id, name, email, company, phone, language, use_case, attendees, notes, demo_date, demo_time, timezone, status, created_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Asia/Dubai', 'confirmed', $12)`, values: [
-        bookingId, String(body.name).trim(), email, String(body.company).trim(), String(body.phone).trim(),
-        String(body.language), String(body.useCase), String(body.attendees || "").trim(), String(body.notes || "").trim(),
+        bookingId, lead.name, email, lead.company, lead.phone,
+        lead.language, lead.useCase, String(body.attendees || "").trim(), lead.notes,
         String(body.date), String(body.time), new Date().toISOString()
       ] });
-    return Response.json({ ok: true, bookingId }, { status: 201 });
+    let emailSent = false;
+    try { emailSent = (await sendLeadEmails(lead)).sent; }
+    catch (error) { console.error("Demo saved, but email delivery failed", error); }
+    return Response.json({ ok: true, bookingId, emailSent }, { status: 201 });
   } catch (error) {
     console.error("Demo booking failed", error);
     return Response.json({ error: "Unable to confirm booking" }, { status: 500 });
