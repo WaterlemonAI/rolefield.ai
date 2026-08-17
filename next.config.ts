@@ -5,12 +5,12 @@ const nextConfig: NextConfig = {
     const scriptPolicy = process.env.NODE_ENV === "development" ? "'self' 'unsafe-inline' 'unsafe-eval'" : "'self' 'unsafe-inline'";
     const contentSecurityPolicy = [
       "default-src 'self'",
-      `script-src ${scriptPolicy}`,
+      `script-src ${scriptPolicy} https://www.googletagmanager.com`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://jumpshare.com https://*.jumpshare.com",
+      "img-src 'self' data: blob: https://jumpshare.com https://*.jumpshare.com https://www.google-analytics.com https://www.googletagmanager.com",
       "media-src 'self' blob: https://jumpshare.com https://*.jumpshare.com",
       "frame-src https://jumpshare.com https://*.jumpshare.com",
-      "connect-src 'self' https://jumpshare.com https://*.jumpshare.com",
+      "connect-src 'self' https://jumpshare.com https://*.jumpshare.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com",
       "font-src 'self' data:",
       "object-src 'none'",
       "base-uri 'self'",

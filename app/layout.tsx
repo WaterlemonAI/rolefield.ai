@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
+import { AnalyticsConsent } from "@/components/google-analytics";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -49,6 +51,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <Script id="google-consent-mode" strategy="beforeInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          var analyticsConsent = 'denied';
+          try { analyticsConsent = localStorage.getItem('rolefield-analytics-consent') === 'granted' ? 'granted' : 'denied'; } catch (e) {}
+          gtag('consent', 'default', { analytics_storage: analyticsConsent });
+        `}</Script>
+        <Script async src="https://www.googletagmanager.com/gtag/js?id=G-8GPGN7W055" strategy="afterInteractive" />
+        <Script id="google-analytics" strategy="afterInteractive">{`gtag('js', new Date()); gtag('config', 'G-8GPGN7W055');`}</Script>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org", "@type": "Organization", name: "RoleField", url: "https://rolefield.ai",
           logo: "https://rolefield.ai/rolefield-logo.png", email: "voice@ai7lab.net",
@@ -56,6 +68,7 @@ export default function RootLayout({
           address: { "@type": "PostalAddress", addressLocality: "Dubai", addressRegion: "DIFC", addressCountry: "AE" },
         }).replace(/</g, "\\u003c") }} />
         {children}
+        <AnalyticsConsent />
       </body>
     </html>
   );
