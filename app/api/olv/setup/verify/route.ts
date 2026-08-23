@@ -1,12 +1,11 @@
 import { z } from "zod";
 import { query } from "@/lib/olv/db";
-import { requireSameOrigin, tokenHash } from "@/lib/olv/security";
+import { tokenHash } from "@/lib/olv/security";
 import { verifyDomainConnection } from "@/lib/olv/domain-verification";
 
 const input = z.object({ token: z.string().min(32) });
 
 export async function POST(request: Request) {
-  requireSameOrigin(request);
   let parsed: z.infer<typeof input>;
   try { parsed = input.parse(await request.json()); }
   catch { return Response.json({ error: "This setup session is invalid." }, { status: 400 }); }
