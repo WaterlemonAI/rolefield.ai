@@ -41,7 +41,8 @@ type User = {
 type Department = { id: string; name: string };
 type Module = "MAILBOX" | "VOICE" | "SOCIAL" | "DOCUMENTS";
 const ALL_MODULES: Module[] = ["MAILBOX", "VOICE", "SOCIAL", "DOCUMENTS"];
-type LiveStatus = { state: string; identity: boolean; dkim: boolean; requiredDns: boolean; health: "GREEN" | "AMBER" | "RED"; checkedAt: string };
+type DeliverabilityCheck = { key:string;label:string;status:"PASS"|"WARNING"|"FAIL";detail:string;action?:string };
+type LiveStatus = { state: string; identity: boolean; dkim: boolean; requiredDns: boolean; health: "GREEN" | "AMBER" | "RED"; checkedAt: string; deliverability?:DeliverabilityCheck[] };
 type ExternalAccount = { id:string;email:string;displayName:string;imapHost:string;smtpHost:string;status:string;lastSyncedAt:string|null;lastError:string|null;mailboxId:string };
 export function AdminConsole() {
   const [domains, setDomains] = useState<Domain[]>([]),
@@ -228,6 +229,18 @@ export function AdminConsole() {
               <span>Expand DNS details</span>
             </summary>
             <div className="olv-domain-actions"><button onClick={() => void verify(d.id)} disabled={checking.includes(d.id)}>{checking.includes(d.id) ? "Testing connection…" : "Test connection"}</button><button className="danger" onClick={() => void removeDomain(d)}>Remove</button></div>
+            <section className="olv-deliverability">
+              <header><div><small>DELIVERABILITY</small><h3>Inbox placement checklist</h3></div><p>Authentication protects delivery; recipient engagement builds reputation over time.</p></header>
+              <div className="olv-deliverability-grid">
+                {(live[d.id]?.deliverability || d.verification?.deliverability || []).map((check) => <article className={check.status.toLowerCase()} key={check.key}>
+                  <span>{check.status === "PASS" ? "Pass" : check.status === "FAIL" ? "Fix now" : "Improve"}</span>
+                  <h4>{check.label}</h4>
+                  <p>{check.detail}</p>
+                  {check.action && <small>{check.action}</small>}
+                </article>)}
+              </div>
+              <footer><b>Sending best practices</b><span>Use recognizable names and useful subjects, avoid repeated test messages, send gradually to engaged recipients, keep complaints below 0.3%, and ask trusted recipients to mark legitimate mail as not spam.</span></footer>
+            </section>
             <div className="olv-dns-table">
               <b>TYPE</b>
               <b>HOST</b>
