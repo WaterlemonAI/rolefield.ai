@@ -19,9 +19,11 @@ export function accountConfig(account: StoredExternalMailAccount): ExternalMailC
 export async function testExternalMail(config: ExternalMailConfig) {
   const imap = new ImapFlow({ host: config.imapHost, port: config.imapPort, secure: config.imapSecure, auth: { user: config.username, pass: config.password }, logger: false });
   try { await imap.connect(); await imap.mailboxOpen("INBOX", { readOnly: true }); }
+  catch(error) { throw new Error(`IMAP connection failed (${config.imapHost}:${config.imapPort}, ${config.imapSecure ? "SSL/TLS" : "STARTTLS"}): ${String((error as Error).message)}`); }
   finally { if (imap.usable) await imap.logout().catch(() => undefined); }
   const smtp = nodemailer.createTransport({ host: config.smtpHost, port: config.smtpPort, secure: config.smtpSecure, auth: { user: config.username, pass: config.password }, connectionTimeout: 15_000, greetingTimeout: 15_000 });
-  await smtp.verify();
+  try { await smtp.verify(); }
+  catch(error) { throw new Error(`SMTP connection failed (${config.smtpHost}:${config.smtpPort}, ${config.smtpSecure ? "SSL/TLS" : "STARTTLS"}): ${String((error as Error).message)}`); }
 }
 export function imapClient(config: ExternalMailConfig) {
   return new ImapFlow({ host: config.imapHost, port: config.imapPort, secure: config.imapSecure, auth: { user: config.username, pass: config.password }, logger: false });
