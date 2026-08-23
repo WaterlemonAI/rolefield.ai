@@ -39,8 +39,8 @@ type User = {
   mailbox_address: string | null;
 };
 type Department = { id: string; name: string };
-type Module = "MAILBOX" | "VOICE" | "SOCIAL" | "DOCUMENTS";
-const ALL_MODULES: Module[] = ["MAILBOX", "VOICE", "SOCIAL", "DOCUMENTS"];
+type Module = "MAILBOX" | "VOICE" | "SOCIAL" | "DOCUMENTS" | "CALENDAR";
+const ALL_MODULES: Module[] = ["MAILBOX", "CALENDAR", "VOICE", "SOCIAL", "DOCUMENTS"];
 type DeliverabilityCheck = { key:string;label:string;status:"PASS"|"WARNING"|"FAIL";detail:string;action?:string };
 type LiveStatus = { state: string; identity: boolean; dkim: boolean; requiredDns: boolean; health: "GREEN" | "AMBER" | "RED"; checkedAt: string; deliverability?:DeliverabilityCheck[] };
 type ExternalAccount = { id:string;email:string;displayName:string;imapHost:string;smtpHost:string;status:string;lastSyncedAt:string|null;lastError:string|null;mailboxId:string };

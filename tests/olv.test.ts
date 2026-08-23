@@ -116,6 +116,7 @@ test("schema carries tenant relationships and authorization indexes", async () =
     "sessions",
     "audit_logs",
     "external_mail_accounts",
+    "calendar_events",
   ])
     assert.match(
       sql,
@@ -130,6 +131,8 @@ test("schema carries tenant relationships and authorization indexes", async () =
   assert.match(sql, /CREATE TABLE IF NOT EXISTS user_module_entitlements/);
   assert.match(sql, /CREATE TYPE user_status AS ENUM \('INVITED','ACTIVE','SUSPENDED'\)/);
   assert.match(sql, /delivery_status TEXT NOT NULL DEFAULT 'PENDING'/);
+  assert.match(sql, /ALTER TYPE app_module ADD VALUE IF NOT EXISTS 'CALENDAR'/);
+  assert.match(sql, /idx_calendar_events_owner_time/);
 });
 test("mailbox creation cannot demote an existing administrator", async () => {
   const source = await readFile(new URL("../app/api/olv/mailboxes/route.ts", import.meta.url), "utf8");

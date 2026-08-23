@@ -5,12 +5,12 @@ import { audit } from "@/lib/olv/audit";
 import { requireSameOrigin } from "@/lib/olv/security";
 import { deliverInvitation, issueInvitation } from "@/lib/olv/invitations";
 
-const moduleSchema = z.enum(["MAILBOX", "VOICE", "SOCIAL", "DOCUMENTS"]);
+const moduleSchema = z.enum(["MAILBOX", "VOICE", "SOCIAL", "DOCUMENTS", "CALENDAR"]);
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("department"), name: z.string().trim().min(2).max(100) }),
   z.object({ action: z.literal("addMember"), mailboxId: z.string().uuid(), userId: z.string().uuid() }),
   z.object({ action: z.literal("removeMember"), mailboxId: z.string().uuid(), userId: z.string().uuid() }),
-  z.object({ action: z.literal("updateModules"), userId: z.string().uuid(), modules: z.array(moduleSchema).max(4) }),
+  z.object({ action: z.literal("updateModules"), userId: z.string().uuid(), modules: z.array(moduleSchema).max(5) }),
   z.object({ action: z.literal("resendInvitation"), userId: z.string().uuid() }),
   z.object({ action: z.literal("suspendUser"), userId: z.string().uuid(), reason: z.string().trim().max(300).optional() }),
   z.object({ action: z.literal("reactivateUser"), userId: z.string().uuid() }),

@@ -20,7 +20,7 @@ try {
   if (!user) user = (await client.query("INSERT INTO users(name,recovery_email,password_hash,activated_at,status) VALUES($1,$2,$3,now(),'ACTIVE') RETURNING id", [OWNER_NAME, OWNER_EMAIL, passwordHash])).rows[0];
   else await client.query("UPDATE users SET name=$1,password_hash=COALESCE(password_hash,$2),activated_at=COALESCE(activated_at,now()),status='ACTIVE',suspended_at=NULL,suspension_reason=NULL WHERE id=$3", [OWNER_NAME, passwordHash, user.id]);
   await client.query("INSERT INTO organization_members(organization_id,user_id,role) VALUES($1,$2,'ADMIN') ON CONFLICT(organization_id,user_id) DO UPDATE SET role='ADMIN'", [organization.id, user.id]);
-  for (const appModule of ['MAILBOX','VOICE','SOCIAL','DOCUMENTS']) await client.query("INSERT INTO user_module_entitlements(organization_id,user_id,module,assigned_by) VALUES($1,$2,$3,$2) ON CONFLICT(organization_id,user_id,module) DO UPDATE SET enabled=true,updated_at=now()", [organization.id,user.id,appModule]);
+  for (const appModule of ['MAILBOX','VOICE','SOCIAL','DOCUMENTS','CALENDAR']) await client.query("INSERT INTO user_module_entitlements(organization_id,user_id,module,assigned_by) VALUES($1,$2,$3,$2) ON CONFLICT(organization_id,user_id,module) DO UPDATE SET enabled=true,updated_at=now()", [organization.id,user.id,appModule]);
   await client.query("COMMIT");
   console.log(`Owner access ready for ${OWNER_EMAIL}.`);
 } catch (error) {

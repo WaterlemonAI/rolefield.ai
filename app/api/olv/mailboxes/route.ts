@@ -6,7 +6,7 @@ import { audit } from "@/lib/olv/audit";
 import { deliverInvitation, issueInvitation } from "@/lib/olv/invitations";
 import { email } from "@/lib/olv/validation";
 
-const modules = z.enum(["MAILBOX", "VOICE", "SOCIAL", "DOCUMENTS"]);
+const modules = z.enum(["MAILBOX", "VOICE", "SOCIAL", "DOCUMENTS", "CALENDAR"]);
 const schema = z.object({
   name: z.string().trim().min(2).max(160),
   localPart: z.string().regex(/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}$/i).transform((value) => value.toLowerCase()),
@@ -14,7 +14,7 @@ const schema = z.object({
   departmentId: z.string().uuid().nullable().optional(),
   type: z.enum(["INDIVIDUAL", "SHARED"]),
   recoveryEmail: email.optional(),
-  modules: z.array(modules).max(4).default([]),
+  modules: z.array(modules).max(5).default([]),
 }).superRefine((value, ctx) => {
   if (value.type === "INDIVIDUAL" && !value.recoveryEmail) ctx.addIssue({ code: "custom", path: ["recoveryEmail"], message: "A recovery email is required." });
   if (value.type === "INDIVIDUAL" && value.modules.length === 0) ctx.addIssue({ code: "custom", path: ["modules"], message: "Enable at least one module." });

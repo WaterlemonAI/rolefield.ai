@@ -4,7 +4,7 @@ import { query } from "./db";
 import { randomToken, safeMetadata, tokenHash } from "./security";
 
 export const OLV_COOKIE="olv_session";
-export type AppModule="MAILBOX"|"VOICE"|"SOCIAL"|"DOCUMENTS";
+export type AppModule="MAILBOX"|"VOICE"|"SOCIAL"|"DOCUMENTS"|"CALENDAR";
 export type Principal={userId:string;organizationId:string;email:string;name:string;orgRole:"ADMIN"|"MEMBER";modules:AppModule[]};
 export async function createSession(userId:string,organizationId:string,request:Request){const token=randomToken();const ttl=Number(process.env.SESSION_TTL_HOURS||12);const meta=safeMetadata(request);await query("INSERT INTO sessions(organization_id,user_id,token_hash,expires_at,ip_hash,user_agent) VALUES($1,$2,$3,now()+($4||' hours')::interval,$5,$6)",[organizationId,userId,tokenHash(token),ttl,meta.ipHash,meta.userAgent]);return {token,maxAge:ttl*3600};}
 export async function principalFromToken(token?:string):Promise<Principal|null>{if(!token)return null;const {rows}=await query<Principal>(`SELECT u.id "userId",om.organization_id "organizationId",u.recovery_email email,u.name,om.role "orgRole",COALESCE(array_agg(e.module::text) FILTER(WHERE e.enabled),'{}') modules FROM sessions s JOIN users u ON u.id=s.user_id JOIN organization_members om ON om.user_id=u.id AND om.organization_id=s.organization_id LEFT JOIN user_module_entitlements e ON e.user_id=u.id AND e.organization_id=om.organization_id WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now() AND u.status='ACTIVE' GROUP BY u.id,om.organization_id,om.role`,[tokenHash(token)]);return rows[0]||null;}
