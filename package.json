@@ -8,14 +8,15 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npm run config:validate && npm run db:migrate && next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "start": "npm run config:validate && npm run db:migrate && npm run db:owner && next start -H 0.0.0.0 -p ${PORT:-3000}",
     "test": "node --test tests/*.test.mjs && tsx --test tests/*.test.ts",
     "lint": "eslint . --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
     "db:migrate": "node scripts/migrate.mjs",
     "worker": "tsx worker/index.ts",
     "config:validate": "node scripts/validate-env.mjs",
-    "db:seed-local": "node scripts/seed-local.mjs"
+    "db:seed-local": "node scripts/seed-local.mjs",
+    "db:owner": "node --env-file-if-exists=.env.local scripts/bootstrap-owner.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",

@@ -148,7 +148,7 @@ export function AdminConsole() {
   return (
     <main className="olv-admin">
       <header>
-        <a href="/app">← Mail</a>
+        <a href="/app">← Apps</a>
         <div>
           <p>OLV ADMINISTRATION</p>
           <h1>Workspace control</h1>
