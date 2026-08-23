@@ -111,24 +111,30 @@ export function AdminConsole() {
   }
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const formElement = e.currentTarget;
     setCreatingMailbox(true);
     setMessage("Creating mailbox…");
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(formElement);
     const form = Object.fromEntries(formData);
-    const r = await fetch("/api/olv/mailboxes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        departmentId: form.departmentId || null,
-        modules: formData.getAll("modules"),
-      }),
-    });
-    const b = await r.json().catch(() => ({ error: "Unable to create mailbox." }));
-    setMessage(r.ok ? `Mailbox ${b.address} created.${b.deliveryStatus === "SENT" ? " Password setup was sent to the recovery email." : b.deliveryStatus === "FAILED" ? " The account was saved, but invitation delivery failed; use Resend invitation." : ""}${b.active ? " It is ready to use." : " It will activate automatically when the domain becomes mail-ready."}` : b.error);
-    if (r.ok) e.currentTarget.reset();
-    setCreatingMailbox(false);
-    await load();
+    try {
+      const r = await fetch("/api/olv/mailboxes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          departmentId: form.departmentId || null,
+          modules: formData.getAll("modules"),
+        }),
+      });
+      const b = await r.json().catch(() => ({ error: "Unable to create mailbox." }));
+      setMessage(r.ok ? `Mailbox ${b.address} created.${b.deliveryStatus === "SENT" ? " Password setup was sent to the recovery email." : b.deliveryStatus === "FAILED" ? " The account was saved, but invitation delivery failed; use Resend invitation." : ""}${b.active ? " It is ready to use." : " It will activate automatically when the domain becomes mail-ready."}` : b.error);
+      if (r.ok) formElement.reset();
+      await load();
+    } catch {
+      setMessage("Unable to create the mailbox. Check your connection and try again.");
+    } finally {
+      setCreatingMailbox(false);
+    }
   }
   async function createDepartment(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
