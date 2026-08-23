@@ -16,10 +16,15 @@ export type StoredExternalMailAccount = {
 export function accountConfig(account: StoredExternalMailAccount): ExternalMailConfig {
   return { email: account.email, imapHost: account.imap_host, imapPort: account.imap_port, imapSecure: account.imap_secure, smtpHost: account.smtp_host, smtpPort: account.smtp_port, smtpSecure: account.smtp_secure, username: account.username, password: decryptSecret(account.secret_encrypted) };
 }
+function imapError(error: unknown) {
+  const value=error as {message?:string;responseText?:string;serverResponseCode?:string;authenticationFailed?:boolean};
+  if(value.authenticationFailed)return "Authentication rejected. Enable Titan third-party email access and, if 2FA is enabled, use a Titan application password.";
+  return [value.responseText,value.serverResponseCode,value.message].filter(Boolean).join(" · ")||"Unknown IMAP error";
+}
 export async function testExternalMail(config: ExternalMailConfig) {
   const imap = new ImapFlow({ host: config.imapHost, port: config.imapPort, secure: config.imapSecure, auth: { user: config.username, pass: config.password }, logger: false });
   try { await imap.connect(); await imap.mailboxOpen("INBOX", { readOnly: true }); }
-  catch(error) { throw new Error(`IMAP connection failed (${config.imapHost}:${config.imapPort}, ${config.imapSecure ? "SSL/TLS" : "STARTTLS"}): ${String((error as Error).message)}`); }
+  catch(error) { throw new Error(`IMAP connection failed (${config.imapHost}:${config.imapPort}, ${config.imapSecure ? "SSL/TLS" : "STARTTLS"}): ${imapError(error)}`); }
   finally { if (imap.usable) await imap.logout().catch(() => undefined); }
   const smtp = nodemailer.createTransport({ host: config.smtpHost, port: config.smtpPort, secure: config.smtpSecure, auth: { user: config.username, pass: config.password }, connectionTimeout: 15_000, greetingTimeout: 15_000 });
   try { await smtp.verify(); }
