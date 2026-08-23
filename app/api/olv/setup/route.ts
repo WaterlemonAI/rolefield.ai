@@ -112,9 +112,10 @@ export async function POST(request: Request) {
       {
         ...result,
         records,
+        setupToken: token,
+        activationUrl,
         activationEmailSent,
         ...(warning ? { warning } : {}),
-        ...(process.env.NODE_ENV === "development" ? { activationUrl } : {}),
       },
       { status: 201 },
     );

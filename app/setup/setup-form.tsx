@@ -15,9 +15,11 @@ type Intelligence = {
 type SetupState = {
   records?: { type: string; host: string; value: string; purpose: string; required: boolean }[];
   activationUrl?: string;
+  setupToken?: string;
   error?: string;
   warning?: string;
   activationEmailSent?: boolean;
+  verification?: { state: string; requiredDns: boolean; identity: boolean; dkim: boolean; records: (DnsRecord & { verified: boolean })[] };
 };
 
 type DnsRecord = NonNullable<SetupState["records"]>[number];
@@ -48,6 +50,7 @@ export function OrganizationSetup() {
   const [intel, setIntel] = useState<Intelligence | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [copied, setCopied] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
   async function copy(value: string, key: string) {
     await navigator.clipboard.writeText(value);
@@ -77,6 +80,15 @@ export function OrganizationSetup() {
     setState({});
     const response = await fetch("/api/olv/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(e.currentTarget))) });
     setState(await response.json());
+  }
+
+  async function verifyConnection() {
+    if (!state.setupToken) return;
+    setVerifying(true);
+    const response = await fetch("/api/olv/setup/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: state.setupToken }) });
+    const result = await response.json();
+    setState((current) => response.ok ? { ...current, verification: result, error: undefined } : { ...current, error: result.error || "Verification failed." });
+    setVerifying(false);
   }
 
   const provider = intel?.provider;
@@ -161,8 +173,18 @@ export function OrganizationSetup() {
               </div>
             </section>
             <p className="olv-dns-footnote">DNS changes can take time to propagate. OLV will only activate mail after every required record and SES identity check passes.</p>
+            <section className="olv-setup-next">
+              <small>NEXT STEPS</small>
+              <h2>Finished adding the records?</h2>
+              <p>Run a live check now. If DNS is still propagating, you can activate your administrator account and check again from Admin.</p>
+              <div>
+                <button type="button" className="button dark" disabled={verifying} onClick={verifyConnection}>{verifying ? "Checking live DNS…" : "Verify connection now"}</button>
+                {state.activationUrl && <a className="button" href={state.activationUrl}>Continue: create password →</a>}
+              </div>
+              {state.verification && <p role="status" className={state.verification.state === "MAIL_READY" ? "olv-verify-good" : "olv-verify-wait"}><strong>{state.verification.state === "MAIL_READY" ? "Connected and mail-ready." : "DNS is still propagating."}</strong> {state.verification.records.filter((record) => record.verified).length} of {state.verification.records.length} records are visible; SES identity {state.verification.identity ? "verified" : "pending"} and DKIM {state.verification.dkim ? "verified" : "pending"}.</p>}
+              {state.error && <p role="alert" className="olv-form-error">{state.error}</p>}
+            </section>
             {state.warning && <p role="status" className="olv-setup-warning">{state.warning}</p>}
-            {state.activationUrl && <p className="olv-local-activation">Local verification link: <a href={state.activationUrl}>activate administrator</a></p>}
           </div>
         )}
       </section>
