@@ -20,7 +20,11 @@ export async function POST(request:Request){
   const parsed=schema.safeParse(await request.json().catch(()=>null));
   if(!parsed.success)return Response.json({error:"Enter valid IMAP and SMTP account details.",details:parsed.error.flatten().fieldErrors},{status:400});
   try { await testExternalMail(parsed.data); }
-  catch(error){return Response.json({error:`Connection failed: ${String((error as Error).message).slice(0,240)}`},{status:422});}
+  catch(error){
+    const message=String((error as Error).message).slice(0,500);
+    console.warn("External mail connection test failed", {imapHost:parsed.data.imapHost,imapPort:parsed.data.imapPort,smtpHost:parsed.data.smtpHost,smtpPort:parsed.data.smtpPort,message});
+    return Response.json({error:`Connection failed: ${message}`},{status:422});
+  }
   try {
     const account=await transaction(async c=>{
       const mailbox=(await c.query<{id:string}>("INSERT INTO mailboxes(organization_id,name,type,active) VALUES($1,$2,'INDIVIDUAL',true) RETURNING id",[p.organizationId,parsed.data.displayName])).rows[0];
