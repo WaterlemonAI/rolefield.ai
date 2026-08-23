@@ -37,6 +37,11 @@ export function safeMetadata(request: Request) {
 }
 export function requireSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  if (!origin || origin !== new URL(request.url).origin)
+  const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || new URL(request.url).protocol.replace(":", "");
+  const allowed = new Set([new URL(request.url).origin]);
+  if (forwardedHost) allowed.add(`${forwardedProto}://${forwardedHost}`);
+  if (process.env.APP_URL) allowed.add(new URL(process.env.APP_URL).origin);
+  if (!origin || !allowed.has(origin))
     throw Object.assign(new Error("Invalid request origin."), { status: 403 });
 }

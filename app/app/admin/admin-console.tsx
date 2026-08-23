@@ -23,6 +23,7 @@ type Box = {
   type: string;
   department: string | null;
   member_count: number;
+  active: boolean;
 };
 type User = {
   id: string;
@@ -40,6 +41,7 @@ export function AdminConsole() {
     [departments, setDepartments] = useState<Department[]>([]),
     [live, setLive] = useState<Record<string, LiveStatus>>({}),
     [checking, setChecking] = useState<string[]>([]),
+    [creatingMailbox, setCreatingMailbox] = useState(false),
     [message, setMessage] = useState("");
   const domainIds = domains.map((domain) => domain.id).join(",");
   async function load() {
@@ -101,6 +103,8 @@ export function AdminConsole() {
   }
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setCreatingMailbox(true);
+    setMessage("Creating mailbox…");
     const form = Object.fromEntries(new FormData(e.currentTarget));
     const r = await fetch("/api/olv/mailboxes", {
       method: "POST",
@@ -108,16 +112,12 @@ export function AdminConsole() {
       body: JSON.stringify({
         ...form,
         departmentId: form.departmentId || null,
-        memberUserIds: [],
       }),
     });
-    const b = await r.json();
-    setMessage(
-      r.ok
-        ? `Mailbox ${b.address} created.${b.activationUrl ? " Activation link generated." : ""}`
-        : b.error,
-    );
+    const b = await r.json().catch(() => ({ error: "Unable to create mailbox." }));
+    setMessage(r.ok ? `Mailbox ${b.address} created.${b.active ? " It is ready to use." : " It will activate automatically when the domain becomes mail-ready."}` : b.error);
     if (r.ok) e.currentTarget.reset();
+    setCreatingMailbox(false);
     await load();
   }
   async function createDepartment(e: FormEvent<HTMLFormElement>) {
@@ -272,7 +272,7 @@ export function AdminConsole() {
               <select name="domainId" required>
                 {domains.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.name}
+                    {d.name} · {d.state === "MAIL_READY" ? "ready" : "connection pending"}
                   </option>
                 ))}
               </select>
@@ -295,11 +295,8 @@ export function AdminConsole() {
                 ))}
               </select>
             </label>
-            <label>
-              External recovery email
-              <input name="recoveryEmail" type="email" />
-            </label>
-            <button className="button dark">Create mailbox</button>
+            <p className="olv-mailbox-owner-note">The private owner account will manage this mailbox. No additional login account is created.</p>
+            <button className="button dark" disabled={creatingMailbox}>{creatingMailbox ? "Creating…" : "Create mailbox"}</button>
           </form>
           <div className="olv-box-list">
             {boxes.map((b) => (
@@ -310,7 +307,7 @@ export function AdminConsole() {
                   <small>{b.address}</small>
                 </div>
                 <em>
-                  {b.member_count} member
+                  {!b.active ? "Pending domain · " : ""}{b.member_count} member
                   {Number(b.member_count) === 1 ? "" : "s"}
                 </em>
                 {b.type === "SHARED" && (

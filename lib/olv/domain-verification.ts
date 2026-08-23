@@ -28,6 +28,7 @@ export async function verifyDomainConnection(domain: { id: string; organizationI
   const next = ses.identity && ses.dkim && requiredDns ? "MAIL_READY" : ses.identity && ses.dkim ? "VERIFIED" : "DNS_PENDING";
   await transaction(async (client) => {
     await client.query("UPDATE domains SET state=$3,last_checked_at=now(),failure_reason=NULL WHERE id=$1 AND organization_id=$2", [domain.id, domain.organizationId, next]);
+    if (next === "MAIL_READY") await client.query("UPDATE mailboxes SET active=true WHERE organization_id=$1 AND id IN (SELECT mailbox_id FROM mailbox_addresses WHERE domain_id=$2)", [domain.organizationId, domain.id]);
     for (const [id, verified] of checks) await client.query("UPDATE domain_dns_records SET verified=$3 WHERE id=$1 AND organization_id=$2", [id, domain.organizationId, verified]);
     await client.query(
       "INSERT INTO domain_verification_events(organization_id,domain_id,previous_state,next_state,details) VALUES($1,$2,$3,$4,$5)",

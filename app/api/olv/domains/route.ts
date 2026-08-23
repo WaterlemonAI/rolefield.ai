@@ -107,6 +107,7 @@ export async function POST(request: Request) {
         "UPDATE domains SET state=$3,last_checked_at=now(),failure_reason=NULL WHERE id=$1 AND organization_id=$2",
         [domain.id, p.organizationId, next],
       );
+      if (next === "MAIL_READY") await c.query("UPDATE mailboxes SET active=true WHERE organization_id=$1 AND id IN (SELECT mailbox_id FROM mailbox_addresses WHERE domain_id=$2)", [p.organizationId, domain.id]);
       for (const [id, verified] of checks)
         await c.query(
           "UPDATE domain_dns_records SET verified=$3 WHERE id=$1 AND organization_id=$2",
