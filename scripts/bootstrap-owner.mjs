@@ -22,7 +22,7 @@ try {
   await client.query("DELETE FROM organization_members WHERE user_id=$1 AND organization_id<>$2", [user.id, organization.id]);
   await client.query("INSERT INTO organization_members(organization_id,user_id,role) VALUES($1,$2,'ADMIN') ON CONFLICT(organization_id,user_id) DO UPDATE SET role='ADMIN'", [organization.id, user.id]);
   await client.query("DELETE FROM organization_members WHERE organization_id=$1 AND user_id<>$2", [organization.id, user.id]);
-  await client.query("UPDATE sessions SET revoked_at=now() WHERE revoked_at IS NULL");
+  await client.query("UPDATE sessions SET revoked_at=now() WHERE user_id<>$1 AND revoked_at IS NULL", [user.id]);
   await client.query("COMMIT");
   console.log(`Owner access ready for ${OWNER_EMAIL}.`);
 } catch (error) {
