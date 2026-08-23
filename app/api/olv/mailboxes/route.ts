@@ -56,12 +56,13 @@ export async function POST(request: Request) {
       const recoveryEmail = data.recoveryEmail!;
       let user = (await client.query<{ id: string; activated_at: string | null; status: string }>("SELECT id,activated_at,status FROM users WHERE recovery_email=$1", [recoveryEmail])).rows[0];
       if (user) {
-        const memberships = await client.query<{ organization_id: string }>("SELECT organization_id FROM organization_members WHERE user_id=$1", [user.id]);
+        const memberships = await client.query<{ organization_id: string; role: string }>("SELECT organization_id,role FROM organization_members WHERE user_id=$1", [user.id]);
         if (memberships.rows.some((membership) => membership.organization_id !== principal.organizationId)) throw Object.assign(new Error("That recovery email belongs to another workspace."), { status: 409 });
+        if (memberships.rows.some((membership) => membership.organization_id === principal.organizationId && membership.role === "ADMIN")) throw Object.assign(new Error("Use a different recovery email for the employee. The administrator account cannot be converted into an employee."), { status: 409 });
       } else {
         user = (await client.query<{ id: string; activated_at: string | null; status: string }>("INSERT INTO users(name,recovery_email,status) VALUES($1,$2,'INVITED') RETURNING id,activated_at,status", [data.name, recoveryEmail])).rows[0];
       }
-      await client.query("INSERT INTO organization_members(organization_id,user_id,role) VALUES($1,$2,'MEMBER') ON CONFLICT(organization_id,user_id) DO UPDATE SET role='MEMBER'", [principal.organizationId, user.id]);
+      await client.query("INSERT INTO organization_members(organization_id,user_id,role) VALUES($1,$2,'MEMBER') ON CONFLICT(organization_id,user_id) DO NOTHING", [principal.organizationId, user.id]);
       await client.query("INSERT INTO mailbox_members(organization_id,mailbox_id,user_id,role) VALUES($1,$2,$3,'OWNER')", [principal.organizationId, mailbox.id, user.id]);
       await client.query("UPDATE user_module_entitlements SET enabled=false,updated_at=now(),assigned_by=$3 WHERE organization_id=$1 AND user_id=$2", [principal.organizationId, user.id, principal.userId]);
       for (const appModule of data.modules as AppModule[]) await client.query("INSERT INTO user_module_entitlements(organization_id,user_id,module,enabled,assigned_by) VALUES($1,$2,$3,true,$4) ON CONFLICT(organization_id,user_id,module) DO UPDATE SET enabled=true,assigned_by=EXCLUDED.assigned_by,updated_at=now()", [principal.organizationId, user.id, appModule, principal.userId]);

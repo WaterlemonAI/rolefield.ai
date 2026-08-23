@@ -121,3 +121,9 @@ test("schema carries tenant relationships and authorization indexes", async () =
   assert.match(sql, /CREATE TYPE user_status AS ENUM \('INVITED','ACTIVE','SUSPENDED'\)/);
   assert.match(sql, /delivery_status TEXT NOT NULL DEFAULT 'PENDING'/);
 });
+test("mailbox creation cannot demote an existing administrator", async () => {
+  const source = await readFile(new URL("../app/api/olv/mailboxes/route.ts", import.meta.url), "utf8");
+  assert.match(source, /administrator account cannot be converted into an employee/i);
+  assert.match(source, /ON CONFLICT\(organization_id,user_id\) DO NOTHING/);
+  assert.doesNotMatch(source, /DO UPDATE SET role='MEMBER'/);
+});
