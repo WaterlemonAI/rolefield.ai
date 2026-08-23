@@ -13,6 +13,7 @@ import {
   tokenHash,
 } from "../lib/olv/security";
 import { readFile } from "node:fs/promises";
+import { calculateDomainHealth } from "../lib/olv/domain-verification";
 test("domain normalization rejects URLs, paths, emails and malformed names", () => {
   assert.equal(normalizeDomain("Example.COM."), "example.com");
   for (const value of [
@@ -47,6 +48,12 @@ test("tokens are random and only hashes need persistence", () => {
   assert.notEqual(a, b);
   assert.equal(tokenHash(a).length, 64);
   assert.notEqual(tokenHash(a), a);
+});
+test("domain health is deterministic from real check results", () => {
+  assert.equal(calculateDomainHealth({ identity: true, dkim: true, requiredRecords: [true, true, true] }), "GREEN");
+  assert.equal(calculateDomainHealth({ identity: true, dkim: false, requiredRecords: [true, false] }), "AMBER");
+  assert.equal(calculateDomainHealth({ identity: false, dkim: false, requiredRecords: [false, false] }), "RED");
+  assert.equal(calculateDomainHealth({ identity: true, dkim: true, requiredRecords: [true], unreachable: true }), "RED");
 });
 test("HTML sanitizer strips executable content and unsafe protocols", () => {
   const clean = cleanHtml(
@@ -110,4 +117,7 @@ test("schema carries tenant relationships and authorization indexes", async () =
   assert.match(sql, /UNIQUE\(organization_id,internet_message_id\)/);
   assert.match(sql, /idx_mailbox_members_user/);
   assert.match(sql, /idx_search_messages/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS user_module_entitlements/);
+  assert.match(sql, /CREATE TYPE user_status AS ENUM \('INVITED','ACTIVE','SUSPENDED'\)/);
+  assert.match(sql, /delivery_status TEXT NOT NULL DEFAULT 'PENDING'/);
 });

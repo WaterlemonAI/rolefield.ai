@@ -24,8 +24,9 @@ export async function POST(request: Request) {
         )
       ).rows[0];
       if (!token) return false;
-      await c.query("UPDATE users SET password_hash=$1,activated_at=now() WHERE id=$2", [passwordHash, token.user_id]);
-      await c.query("UPDATE account_activation_tokens SET consumed_at=now() WHERE id=$1", [token.id]);
+      await c.query("UPDATE users SET password_hash=$1,activated_at=now(),status='ACTIVE',suspended_at=NULL,suspension_reason=NULL WHERE id=$2", [passwordHash, token.user_id]);
+      await c.query("UPDATE account_activation_tokens SET consumed_at=now() WHERE organization_id=$1 AND user_id=$2 AND consumed_at IS NULL", [token.organization_id, token.user_id]);
+      await c.query("UPDATE sessions SET revoked_at=now() WHERE organization_id=$1 AND user_id=$2 AND revoked_at IS NULL", [token.organization_id, token.user_id]);
       await c.query(
         "INSERT INTO audit_logs(organization_id,actor_user_id,action,target_type,target_id) VALUES($1,$2,'ACCOUNT_ACTIVATED','user',$3)",
         [token.organization_id, token.user_id, token.user_id],

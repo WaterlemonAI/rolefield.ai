@@ -6,6 +6,7 @@ import { requireSameOrigin } from "@/lib/olv/security";
 export async function POST(request: Request) {
   requireSameOrigin(request);
   const p = await apiPrincipal(request);
+  if (p.orgRole !== "ADMIN" && !p.modules.includes("MAILBOX")) return Response.json({ error: "Mailbox access required." }, { status: 403 });
   const mailboxId = request.headers.get("x-mailbox-id") || "";
   const draftId = request.headers.get("x-draft-id") || "";
   await requireMailbox(p, mailboxId);
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
 }
 export async function GET(request: Request) {
   const p = await apiPrincipal(request);
+  if (p.orgRole !== "ADMIN" && !p.modules.includes("MAILBOX")) return Response.json({ error: "Mailbox access required." }, { status: 403 });
   const id = new URL(request.url).searchParams.get("id");
   const { rows } = await query<{ s3_key: string }>(
     `SELECT a.s3_key FROM attachments a LEFT JOIN messages m ON m.id=a.message_id LEFT JOIN drafts d ON d.id=a.draft_id WHERE a.id=$1 AND a.organization_id=$2 AND ((m.id IS NOT NULL AND EXISTS(SELECT 1 FROM mailbox_members mm WHERE mm.organization_id=$2 AND mm.user_id=$3 AND mm.mailbox_id=m.mailbox_id)) OR (d.id IS NOT NULL AND d.user_id=$3))`,

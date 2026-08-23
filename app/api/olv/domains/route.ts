@@ -2,13 +2,14 @@ import { apiPrincipal } from "@/lib/olv/session";
 import { query, transaction } from "@/lib/olv/db";
 import { SesMailProvider } from "@/lib/olv/aws";
 import { audit } from "@/lib/olv/audit";
-import { resolveCname, resolveMx, resolveTxt } from "node:dns/promises";
 import { requireSameOrigin } from "@/lib/olv/security";
 import { normalizeDomain } from "@/lib/olv/validation";
+import { calculateDomainHealth, verifyDomainConnection } from "@/lib/olv/domain-verification";
 export async function GET(request: Request) {
   const p = await apiPrincipal(request);
+  if (p.orgRole !== "ADMIN") return Response.json({ error: "Administrator access required." }, { status: 403 });
   const domains = await query(
-    "SELECT d.*,(SELECT json_agg(r ORDER BY r.required DESC,r.type) FROM domain_dns_records r WHERE r.domain_id=d.id AND r.organization_id=d.organization_id) records FROM domains d WHERE d.organization_id=$1 ORDER BY d.created_at",
+    "SELECT d.*,(SELECT json_agg(r ORDER BY r.required DESC,r.type) FROM domain_dns_records r WHERE r.domain_id=d.id AND r.organization_id=d.organization_id) records,(SELECT e.details FROM domain_verification_events e WHERE e.domain_id=d.id AND e.organization_id=d.organization_id ORDER BY e.created_at DESC LIMIT 1) verification FROM domains d WHERE d.organization_id=$1 ORDER BY d.created_at",
     [p.organizationId],
   );
   return Response.json({ domains: domains.rows });
@@ -50,99 +51,17 @@ export async function POST(request: Request) {
   ).rows[0];
   if (!domain)
     return Response.json({ error: "Domain not found." }, { status: 404 });
-  await query(
-    "UPDATE domains SET state='VERIFYING',last_checked_at=now() WHERE id=$1 AND organization_id=$2",
-    [domain.id, p.organizationId],
-  );
   try {
-    const ses = await new SesMailProvider().checkDomainIdentity(domain.name);
-    const records = (
-      await query<{
-        id: string;
-        type: string;
-        host: string;
-        value: string;
-        purpose: string;
-        required: boolean;
-      }>(
-        "SELECT id,type,host,value,purpose,required FROM domain_dns_records WHERE domain_id=$1 AND organization_id=$2",
-        [domain.id, p.organizationId],
-      )
-    ).rows;
-    const checks = new Map<string, boolean>();
-    for (const record of records) {
-      let verified = false;
-      try {
-        if (record.type === "MX") {
-          const expected = record.value
-            .replace(/^\d+\s+/, "")
-            .replace(/\.$/, "");
-          verified = (await resolveMx(record.host)).some(
-            (x) => x.exchange.replace(/\.$/, "") === expected,
-          );
-        } else if (record.type === "TXT") {
-          const values = (await resolveTxt(record.host)).map((x) => x.join(""));
-          verified = values.includes(record.value);
-        } else if (record.type === "CNAME") {
-          verified = (await resolveCname(record.host))
-            .map((x) => x.replace(/\.$/, ""))
-            .includes(record.value.replace(/\.$/, ""));
-        }
-      } catch {
-        verified = false;
-      }
-      checks.set(record.id, verified);
-    }
-    const requiredDns = records
-      .filter((r) => r.required)
-      .every((r) => checks.get(r.id));
-    const next =
-      ses.identity && ses.dkim && requiredDns
-        ? "MAIL_READY"
-        : ses.identity && ses.dkim
-          ? "VERIFIED"
-          : "DNS_PENDING";
-    await transaction(async (c) => {
-      await c.query(
-        "UPDATE domains SET state=$3,last_checked_at=now(),failure_reason=NULL WHERE id=$1 AND organization_id=$2",
-        [domain.id, p.organizationId, next],
-      );
-      if (next === "MAIL_READY") await c.query("UPDATE mailboxes SET active=true WHERE organization_id=$1 AND id IN (SELECT mailbox_id FROM mailbox_addresses WHERE domain_id=$2)", [p.organizationId, domain.id]);
-      for (const [id, verified] of checks)
-        await c.query(
-          "UPDATE domain_dns_records SET verified=$3 WHERE id=$1 AND organization_id=$2",
-          [id, p.organizationId, verified],
-        );
-      const details = { ...ses, requiredDns };
-      await c.query(
-        "INSERT INTO domain_verification_events(organization_id,domain_id,previous_state,next_state,details) VALUES($1,$2,$3,$4,$5)",
-        [
-          p.organizationId,
-          domain.id,
-          domain.state,
-          next,
-          JSON.stringify(details),
-        ],
-      );
-      await audit(
-        c,
-        p,
-        next === "MAIL_READY"
-          ? "DOMAIN_VERIFIED"
-          : "DOMAIN_VERIFICATION_ATTEMPTED",
-        "domain",
-        domain.id,
-        details,
-      );
-    });
-    return Response.json({ state: next, ...ses, requiredDns });
+    const result = await verifyDomainConnection({ id: domain.id, organizationId: p.organizationId, name: domain.name, state: domain.state });
+    await transaction((c) => audit(c, p, result.health === "GREEN" ? "DOMAIN_VERIFIED" : "DOMAIN_VERIFICATION_ATTEMPTED", "domain", domain.id, result));
+    return Response.json(result);
   } catch (error) {
     await query(
       "UPDATE domains SET state='FAILED',failure_reason=$3,last_checked_at=now() WHERE id=$1 AND organization_id=$2",
       [domain.id, p.organizationId, (error as Error).message.slice(0, 300)],
     );
     return Response.json(
-      { error: "SES or DNS verification check failed." },
+      { error: "SES or DNS verification check failed.", health: calculateDomainHealth({ identity: false, dkim: false, requiredRecords: [], unreachable: true }) },
       { status: 502 },
     );
   }

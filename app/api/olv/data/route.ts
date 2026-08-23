@@ -47,6 +47,7 @@ const discardSchema = z.object({ action: z.literal("discard"), mailboxId: z.stri
 
 export async function GET(request: Request) {
   const p = await apiPrincipal(request);
+  if (p.orgRole !== "ADMIN" && !p.modules.includes("MAILBOX")) return Response.json({ error: "Mailbox access required." }, { status: 403 });
   const url = new URL(request.url);
   const mailboxId = url.searchParams.get("mailboxId");
   const folder = url.searchParams.get("folder") || "Inbox";
@@ -155,6 +156,7 @@ type PersonRecord = { email: string; name?: string };
 export async function POST(request: Request) {
   requireSameOrigin(request);
   const p = await apiPrincipal(request);
+  if (p.orgRole !== "ADMIN" && !p.modules.includes("MAILBOX")) return Response.json({ error: "Mailbox access required." }, { status: 403 });
   let body: unknown;
   try {
     body = await request.json();

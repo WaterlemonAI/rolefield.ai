@@ -73,6 +73,8 @@ ON custom_agent_requests(created_at DESC);
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DO $$ BEGIN CREATE TYPE org_role AS ENUM ('ADMIN','MEMBER'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE user_status AS ENUM ('INVITED','ACTIVE','SUSPENDED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE app_module AS ENUM ('MAILBOX','VOICE','SOCIAL','DOCUMENTS'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE mailbox_role AS ENUM ('OWNER','MEMBER'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE mailbox_type AS ENUM ('INDIVIDUAL','SHARED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE domain_state AS ENUM ('PENDING','DNS_PENDING','VERIFYING','VERIFIED','MAIL_READY','FAILED','SUSPENDED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -82,7 +84,13 @@ DO $$ BEGIN CREATE TYPE participant_kind AS ENUM ('FROM','REPLY_TO','TO','CC','B
 
 CREATE TABLE IF NOT EXISTS organizations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL CHECK(length(name) BETWEEN 2 AND 160), created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS users (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, recovery_email TEXT NOT NULL UNIQUE, password_hash TEXT, activated_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status user_status NOT NULL DEFAULT 'INVITED';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS suspension_reason TEXT;
+UPDATE users SET status=CASE WHEN suspended_at IS NOT NULL THEN 'SUSPENDED'::user_status WHEN activated_at IS NOT NULL THEN 'ACTIVE'::user_status ELSE 'INVITED'::user_status END;
 CREATE TABLE IF NOT EXISTS organization_members (organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, role org_role NOT NULL DEFAULT 'MEMBER', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(organization_id,user_id));
+CREATE TABLE IF NOT EXISTS user_module_entitlements (organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, module app_module NOT NULL, enabled BOOLEAN NOT NULL DEFAULT true, assigned_by UUID REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(organization_id,user_id,module), FOREIGN KEY(organization_id,user_id) REFERENCES organization_members(organization_id,user_id) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS domains (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, name TEXT NOT NULL, state domain_state NOT NULL DEFAULT 'PENDING', ses_identity_arn TEXT, last_checked_at TIMESTAMPTZ, failure_reason TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(organization_id,name), UNIQUE(name));
 CREATE TABLE IF NOT EXISTS domain_dns_records (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE, type TEXT NOT NULL CHECK(type IN ('TXT','CNAME','MX')), host TEXT NOT NULL, value TEXT NOT NULL, purpose TEXT NOT NULL, required BOOLEAN NOT NULL DEFAULT true, verified BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(domain_id,type,host,value));
 CREATE TABLE IF NOT EXISTS domain_verification_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, domain_id UUID NOT NULL REFERENCES domains(id) ON DELETE CASCADE, previous_state domain_state, next_state domain_state NOT NULL, details JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now());
@@ -105,12 +113,16 @@ CREATE TABLE IF NOT EXISTS mail_delivery_events (id UUID PRIMARY KEY DEFAULT gen
 CREATE TABLE IF NOT EXISTS mail_bounces (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, message_id UUID REFERENCES messages(id) ON DELETE SET NULL, recipient TEXT NOT NULL, hard BOOLEAN NOT NULL, diagnostic TEXT, occurred_at TIMESTAMPTZ NOT NULL);
 CREATE TABLE IF NOT EXISTS mail_complaints (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, message_id UUID REFERENCES messages(id) ON DELETE SET NULL, recipient TEXT NOT NULL, occurred_at TIMESTAMPTZ NOT NULL);
 CREATE TABLE IF NOT EXISTS account_activation_tokens (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, consumed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+ALTER TABLE account_activation_tokens ADD COLUMN IF NOT EXISTS delivery_status TEXT NOT NULL DEFAULT 'PENDING';
+ALTER TABLE account_activation_tokens ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ;
+ALTER TABLE account_activation_tokens ADD COLUMN IF NOT EXISTS delivery_error TEXT;
 CREATE TABLE IF NOT EXISTS password_reset_tokens (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, consumed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, revoked_at TIMESTAMPTZ, ip_hash TEXT, user_agent TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS audit_logs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL, action TEXT NOT NULL, target_type TEXT, target_id TEXT, request_metadata JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS processed_jobs (idempotency_key TEXT PRIMARY KEY, job_type TEXT NOT NULL, completed_at TIMESTAMPTZ NOT NULL DEFAULT now());
 
 CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id,organization_id);
+CREATE INDEX IF NOT EXISTS idx_entitlements_user ON user_module_entitlements(user_id,organization_id) WHERE enabled;
 CREATE INDEX IF NOT EXISTS idx_mailbox_members_user ON mailbox_members(user_id,mailbox_id);
 CREATE INDEX IF NOT EXISTS idx_threads_mailbox_latest ON threads(organization_id,mailbox_id,latest_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_thread_time ON messages(organization_id,thread_id,COALESCE(received_at,sent_at,created_at));

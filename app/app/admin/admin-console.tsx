@@ -6,6 +6,7 @@ type Domain = {
   state: string;
   last_checked_at: string | null;
   failure_reason: string | null;
+  verification?: LiveStatus | null;
   records: {
     id: string;
     type: string;
@@ -31,9 +32,16 @@ type User = {
   recovery_email: string;
   activated_at: string | null;
   role: string;
+  status: "INVITED" | "ACTIVE" | "SUSPENDED";
+  last_login_at: string | null;
+  suspension_reason: string | null;
+  modules: Module[];
+  mailbox_address: string | null;
 };
 type Department = { id: string; name: string };
-type LiveStatus = { state: string; identity: boolean; dkim: boolean; requiredDns: boolean; checkedAt: string };
+type Module = "MAILBOX" | "VOICE" | "SOCIAL" | "DOCUMENTS";
+const ALL_MODULES: Module[] = ["MAILBOX", "VOICE", "SOCIAL", "DOCUMENTS"];
+type LiveStatus = { state: string; identity: boolean; dkim: boolean; requiredDns: boolean; health: "GREEN" | "AMBER" | "RED"; checkedAt: string };
 export function AdminConsole() {
   const [domains, setDomains] = useState<Domain[]>([]),
     [boxes, setBoxes] = useState<Box[]>([]),
@@ -105,17 +113,19 @@ export function AdminConsole() {
     e.preventDefault();
     setCreatingMailbox(true);
     setMessage("Creating mailbox…");
-    const form = Object.fromEntries(new FormData(e.currentTarget));
+    const formData = new FormData(e.currentTarget);
+    const form = Object.fromEntries(formData);
     const r = await fetch("/api/olv/mailboxes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
         departmentId: form.departmentId || null,
+        modules: formData.getAll("modules"),
       }),
     });
     const b = await r.json().catch(() => ({ error: "Unable to create mailbox." }));
-    setMessage(r.ok ? `Mailbox ${b.address} created.${b.active ? " It is ready to use." : " It will activate automatically when the domain becomes mail-ready."}` : b.error);
+    setMessage(r.ok ? `Mailbox ${b.address} created.${b.deliveryStatus === "SENT" ? " Password setup was sent to the recovery email." : b.deliveryStatus === "FAILED" ? " The account was saved, but invitation delivery failed; use Resend invitation." : ""}${b.active ? " It is ready to use." : " It will activate automatically when the domain becomes mail-ready."}` : b.error);
     if (r.ok) e.currentTarget.reset();
     setCreatingMailbox(false);
     await load();
@@ -145,6 +155,12 @@ export function AdminConsole() {
     setMessage(response.ok ? "Shared mailbox membership updated." : body.error);
     await load();
   }
+  async function employeeAction(user: User, action: "resendInvitation" | "suspendUser" | "reactivateUser" | "revokeSessions" | "updateModules", modules?: Module[]) {
+    const response = await fetch("/api/olv/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, userId: user.id, ...(modules ? { modules } : {}) }) });
+    const body = await response.json().catch(() => ({ error: "Unable to update employee." }));
+    setMessage(response.ok ? action === "resendInvitation" ? `Invitation ${body.deliveryStatus === "SENT" ? "sent" : "could not be delivered"} to ${user.recovery_email}.` : "Employee access updated." : body.error);
+    await load();
+  }
   return (
     <main className="olv-admin">
       <header>
@@ -166,19 +182,20 @@ export function AdminConsole() {
             <button className="button dark">Connect domain</button>
           </form>
         </div>
-        <p className="olv-live-note"><i /> Live status checks authoritative DNS and AWS SES every 30 seconds. No simulated results.</p>
+        <p className="olv-live-note"><i /> Green means every required DNS and AWS check passed. Amber means partially connected. Red means no required connection was found. Checks use authoritative DNS and AWS SES every 30 seconds.</p>
         {domains.map((d) => (
-          <article className="olv-domain" key={d.id}>
-            <header>
+          <details className={`olv-domain health-${(live[d.id]?.health || d.verification?.health || "RED").toLowerCase()}`} key={d.id}>
+            <summary>
               <div>
                 <b>{d.name}</b>
-                <span className={`state ${d.state.toLowerCase()}`}>
-                  {d.state.replace("_", " ")}
+                <span className={`state health-${(live[d.id]?.health || d.verification?.health || "RED").toLowerCase()}`}>
+                  {live[d.id]?.health || d.verification?.health || "RED"}
                 </span>
                 <small className="olv-domain-live"><i className={checking.includes(d.id) ? "checking" : live[d.id]?.state === "MAIL_READY" ? "ready" : ""} />{checking.includes(d.id) ? "Checking live…" : live[d.id] ? `Checked ${new Date(live[d.id].checkedAt).toLocaleTimeString()} · SES identity ${live[d.id].identity ? "verified" : "pending"} · DKIM ${live[d.id].dkim ? "verified" : "pending"} · DNS ${live[d.id].requiredDns ? "complete" : "pending"}` : d.last_checked_at ? `Last checked ${new Date(d.last_checked_at).toLocaleString()}` : "Waiting for first live check"}</small>
               </div>
-              <div className="olv-domain-actions"><button onClick={() => void verify(d.id)} disabled={checking.includes(d.id)}>{checking.includes(d.id) ? "Checking…" : "Check now"}</button><button className="danger" onClick={() => void removeDomain(d)}>Remove</button></div>
-            </header>
+              <span>Expand DNS details</span>
+            </summary>
+            <div className="olv-domain-actions"><button onClick={() => void verify(d.id)} disabled={checking.includes(d.id)}>{checking.includes(d.id) ? "Testing connection…" : "Test connection"}</button><button className="danger" onClick={() => void removeDomain(d)}>Remove</button></div>
             <div className="olv-dns-table">
               <b>TYPE</b>
               <b>HOST</b>
@@ -202,7 +219,7 @@ export function AdminConsole() {
                 </span>
               ))}
             </div>
-          </article>
+          </details>
         ))}
       </section>
       <section>
@@ -241,9 +258,16 @@ export function AdminConsole() {
                 <span>{user.name[0]}</span>
                 <div>
                   <b>{user.name}</b>
-                  <small>{user.recovery_email}</small>
+                  <small>{user.recovery_email}{user.mailbox_address ? ` · ${user.mailbox_address}` : ""}</small>
+                  <small>{user.modules?.length ? user.modules.join(" · ") : "No modules enabled"}</small>
                 </div>
-                <em>{user.activated_at ? user.role : "Activation pending"}</em>
+                <em>{user.role === "ADMIN" ? "ADMIN" : `EMPLOYEE · ${user.status}`}</em>
+                {user.role !== "ADMIN" && <div className="olv-user-actions">
+                  {user.status === "INVITED" && <button onClick={() => void employeeAction(user, "resendInvitation")}>Resend invitation</button>}
+                  {user.status === "SUSPENDED" ? <button onClick={() => void employeeAction(user, "reactivateUser")}>Reactivate</button> : <button onClick={() => void employeeAction(user, "suspendUser")}>Suspend</button>}
+                  <button onClick={() => void employeeAction(user, "revokeSessions")}>Revoke sessions</button>
+                  <details><summary>Edit modules</summary>{ALL_MODULES.map((module) => <label key={module}><input type="checkbox" defaultChecked={user.modules?.includes(module)} onChange={(event) => { const next = event.target.checked ? [...new Set([...(user.modules || []), module])] : (user.modules || []).filter((value) => value !== module); void employeeAction(user, "updateModules", next); }} />{module}</label>)}</details>
+                </div>}
               </article>
             ))}
           </div>
@@ -279,10 +303,15 @@ export function AdminConsole() {
             </label>
             <label>
               Type
-              <select name="type">
+              <select name="type" defaultValue="INDIVIDUAL">
                 <option>INDIVIDUAL</option>
                 <option>SHARED</option>
               </select>
+            </label>
+            <label>
+              Recovery email (required for an employee)
+              <input name="recoveryEmail" type="email" placeholder="employee@gmail.com" />
+              <small>The secure password setup link is sent here. It is not the new RoleField mailbox address.</small>
             </label>
             <label>
               Department
@@ -295,7 +324,8 @@ export function AdminConsole() {
                 ))}
               </select>
             </label>
-            <p className="olv-mailbox-owner-note">The private owner account will manage this mailbox. No additional login account is created.</p>
+            <fieldset><legend>Employee modules</legend>{ALL_MODULES.map((module) => <label key={module}><input type="checkbox" name="modules" value={module} defaultChecked={module === "MAILBOX"} />{module}</label>)}</fieldset>
+            <p className="olv-mailbox-owner-note">For an individual mailbox, RoleField creates an invitation-only employee login and emails a one-time password setup link to the recovery address. Shared mailboxes remain managed by assigned members.</p>
             <button className="button dark" disabled={creatingMailbox}>{creatingMailbox ? "Creating…" : "Create mailbox"}</button>
           </form>
           <div className="olv-box-list">

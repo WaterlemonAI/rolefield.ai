@@ -1,1 +1,1 @@
-import { requirePrincipal } from "@/lib/olv/session";import { redirect } from "next/navigation";import { AdminConsole } from "./admin-console";export const metadata={title:"OLV Administration"};export default async function Page(){const p=await requirePrincipal();if(p.orgRole!=="ADMIN")redirect("/app");return <AdminConsole/>}
+import { requireAdmin } from "@/lib/olv/session";import { AdminConsole } from "./admin-console";export const metadata={title:"OLV Administration"};export default async function Page(){await requireAdmin();return <AdminConsole/>}
