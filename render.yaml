@@ -35,6 +35,8 @@ services:
         value: us-east-1
       - key: S3_BUCKET
         sync: false
+      - key: INBOUND_SQS_QUEUE_URL
+        value: https://sqs.us-east-1.amazonaws.com/271858454098/olv-inbound-production
       - key: SES_CONFIGURATION_SET
         sync: false
       - key: INVITATION_FROM_EMAIL
@@ -78,6 +80,8 @@ services:
         value: us-east-1
       - key: S3_BUCKET
         sync: false
+      - key: INBOUND_SQS_QUEUE_URL
+        value: https://sqs.us-east-1.amazonaws.com/271858454098/olv-inbound-production
       - key: SES_CONFIGURATION_SET
         sync: false
       - key: AWS_ACCESS_KEY_ID

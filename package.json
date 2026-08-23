@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npm run config:validate && npm run db:migrate && npm run db:owner && next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "start": "npm run config:validate && npm run db:migrate && npm run db:owner && node scripts/start-production.mjs",
     "test": "node --test tests/*.test.mjs && tsx --test tests/*.test.ts",
     "lint": "eslint . --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
@@ -21,6 +21,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",
     "@aws-sdk/client-sesv2": "^3.1116.0",
+    "@aws-sdk/client-sqs": "^3.1116.0",
     "@aws-sdk/s3-request-presigner": "^3.1116.0",
     "argon2": "^0.45.1",
     "bullmq": "^6.2.0",

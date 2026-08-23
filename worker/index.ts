@@ -1,5 +1,6 @@
 import { Queue, Worker, type Job } from "bullmq";
 import IORedis from "ioredis";
+import { DeleteMessageCommand, ReceiveMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { getDb } from "../db/index.js";
 import {
   buildMime,
@@ -22,6 +23,7 @@ for (const key of [
   "SES_CONFIGURATION_SET",
   "S3_REGION",
   "S3_BUCKET",
+  "INBOUND_SQS_QUEUE_URL",
 ])
   if (!process.env[key]) throw new Error(`${key} is required.`);
 const redisUrl = process.env.REDIS_URL as string;
@@ -30,6 +32,9 @@ const connection = new IORedis(redisUrl, {
 });
 const provider = new SesMailProvider();
 const deadLetters = new Queue("olv-mail-dead", { connection });
+const sqs = new SQSClient({ region: process.env.S3_REGION, maxAttempts: 5 });
+const inboundQueueUrl = process.env.INBOUND_SQS_QUEUE_URL as string;
+const inboundAbort = new AbortController();
 
 async function idempotent(key: string, type: string, fn: () => Promise<void>) {
   const db = getDb();
@@ -370,7 +375,36 @@ worker.on("failed", async (job, error) => {
       { jobId: `dead-${job.id}`, removeOnComplete: false },
     );
 });
+async function pollInboundQueue() {
+  while (!inboundAbort.signal.aborted) {
+    try {
+      const response = await sqs.send(new ReceiveMessageCommand({
+        QueueUrl: inboundQueueUrl,
+        MaxNumberOfMessages: 10,
+        WaitTimeSeconds: 20,
+        VisibilityTimeout: 120,
+      }), { abortSignal: inboundAbort.signal });
+      for (const message of response.Messages || []) {
+        if (!message.Body || !message.ReceiptHandle || !message.MessageId) continue;
+        const event = JSON.parse(message.Body) as { Records?: Array<{ eventName?: string; s3?: { object?: { key?: string; sequencer?: string } } }> };
+        for (const record of event.Records || []) {
+          const encodedKey = record.s3?.object?.key;
+          if (!encodedKey) continue;
+          const s3Key = decodeURIComponent(encodedKey.replace(/\+/g, " "));
+          await inbound({ data: { s3Key, eventId: `s3:${record.s3?.object?.sequencer || message.MessageId}:${s3Key}` } } as Job);
+        }
+        await sqs.send(new DeleteMessageCommand({ QueueUrl: inboundQueueUrl, ReceiptHandle: message.ReceiptHandle }));
+      }
+    } catch (error) {
+      if (inboundAbort.signal.aborted) return;
+      console.error(JSON.stringify({ level: "error", event: "inbound_queue_poll_failed", error: (error as Error).message }));
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+    }
+  }
+}
+void pollInboundQueue();
 async function shutdown() {
+  inboundAbort.abort();
   await worker.close();
   await deadLetters.close();
   await connection.quit();

@@ -1,0 +1,3 @@
+{
+  "Policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"AllowMailBucketNotifications\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"s3.amazonaws.com\"},\"Action\":\"sqs:SendMessage\",\"Resource\":\"arn:aws:sqs:us-east-1:271858454098:olv-inbound-production\",\"Condition\":{\"StringEquals\":{\"aws:SourceAccount\":\"271858454098\"},\"ArnEquals\":{\"aws:SourceArn\":\"arn:aws:s3:::olv-mail-prod-271858454098-us-east-1\"}}}]}"
+}

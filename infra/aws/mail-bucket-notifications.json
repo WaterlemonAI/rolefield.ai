@@ -1,0 +1,14 @@
+{
+  "QueueConfigurations": [
+    {
+      "Id": "RoleFieldInboundMail",
+      "QueueArn": "arn:aws:sqs:us-east-1:271858454098:olv-inbound-production",
+      "Events": ["s3:ObjectCreated:*"],
+      "Filter": {
+        "Key": {
+          "FilterRules": [{ "Name": "prefix", "Value": "raw/" }]
+        }
+      }
+    }
+  ]
+}

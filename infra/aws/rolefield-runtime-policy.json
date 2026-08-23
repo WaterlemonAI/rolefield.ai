@@ -1,0 +1,35 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3MailObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": [
+        "arn:aws:s3:::olv-mail-prod-271858454098-us-east-1/raw/*",
+        "arn:aws:s3:::olv-mail-prod-271858454098-us-east-1/attachments/*"
+      ]
+    },
+    {
+      "Sid": "InboundMailQueue",
+      "Effect": "Allow",
+      "Action": ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"],
+      "Resource": "arn:aws:sqs:us-east-1:271858454098:olv-inbound-production"
+    },
+    {
+      "Sid": "SesIdentityManagement",
+      "Effect": "Allow",
+      "Action": ["ses:CreateEmailIdentity", "ses:DeleteEmailIdentity"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SesReadAndSend",
+      "Effect": "Allow",
+      "Action": ["ses:GetEmailIdentity", "ses:SendEmail", "ses:SendRawEmail"],
+      "Resource": [
+        "arn:aws:ses:us-east-1:271858454098:identity/*",
+        "arn:aws:ses:us-east-1:271858454098:configuration-set/olv-events"
+      ]
+    }
+  ]
+}
