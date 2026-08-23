@@ -25,8 +25,9 @@ export function BusinessHeader() {
       <Link href="/partnerships">Partnerships</Link>
       <Link href="/roi-calculator">ROI calculator</Link>
       <Link href="/contact">Contact</Link>
+      <Link href="/login">App</Link>
     </nav>
-    <details className="business-menu"><summary>Menu</summary><nav aria-label="Mobile business navigation"><Link href="/">Home</Link><Link href="/#platform">Platform</Link><Link href="/#agents">Agents</Link><Link href="/about">About</Link><Link href="/partnerships">Partnerships</Link><Link href="/roi-calculator">ROI calculator</Link><Link href="/contact">Contact</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link></nav></details>
+    <details className="business-menu"><summary>Menu</summary><nav aria-label="Mobile business navigation"><Link href="/">Home</Link><Link href="/#platform">Platform</Link><Link href="/#agents">Agents</Link><Link href="/about">About</Link><Link href="/partnerships">Partnerships</Link><Link href="/roi-calculator">ROI calculator</Link><Link href="/contact">Contact</Link><Link href="/login">App</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link></nav></details>
     <Link className="button dark compact" href="/?demo=1">Book a demo</Link>
   </header>;
 }

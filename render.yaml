@@ -1,40 +1,104 @@
 services:
   - type: web
-    name: rolefield-gcc
+    name: rolefield-olv-web
     runtime: node
-    plan: free
+    region: oregon
+    plan: starter
     buildCommand: npm ci && npm run build
+    preDeployCommand: npm run db:migrate
     startCommand: npm start
     healthCheckPath: /api/health
-    autoDeployTrigger: commit
+    autoDeployTrigger: checksPass
+    maxShutdownDelaySeconds: 30
     envVars:
       - key: NODE_VERSION
         value: 22.13.0
       - key: DATABASE_URL
-        fromDatabase:
-          name: rolefield-postgres
-          property: connectionString
-      - key: BREVO_API_KEY
+        fromDatabase: { name: rolefield-olv-postgres, property: connectionString }
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: rolefield-olv-queue, property: connectionString }
+      - key: APP_URL
         sync: false
-      - key: BREVO_SENDER_EMAIL
-        value: hello@mail.rolefield.ai
-      - key: BREVO_SENDER_NAME
-        value: RoleField
-      - key: BREVO_DEMO_CUSTOMER_TEMPLATE_ID
-        value: 1
-      - key: BREVO_CALLBACK_CUSTOMER_TEMPLATE_ID
-        value: 2
-      - key: BREVO_DEMO_TEAM_TEMPLATE_ID
-        value: 3
-      - key: BREVO_CALLBACK_TEAM_TEMPLATE_ID
-        value: 4
-      - key: LEAD_NOTIFICATION_EMAIL
-        value: voice@ai7lab.net
-      - key: REPLY_TO_EMAIL
-        value: voice@ai7lab.net
-      - key: NEXT_PUBLIC_SITE_URL
-        value: https://rolefield.ai
+      - key: API_URL
+        sync: false
+      - key: OLV_SESSION_SECRET
+        generateValue: true
+      - key: PASSWORD_PEPPER
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: AWS_REGION
+        value: us-east-1
+      - key: SES_REGION
+        value: us-east-1
+      - key: S3_REGION
+        value: us-east-1
+      - key: S3_BUCKET
+        sync: false
+      - key: SES_CONFIGURATION_SET
+        sync: false
+      - key: INVITATION_FROM_EMAIL
+        sync: false
+      - key: INBOUND_WEBHOOK_SECRET
+        generateValue: true
+      - key: SES_EVENT_WEBHOOK_SECRET
+        generateValue: true
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: MAX_ATTACHMENT_BYTES
+        value: "25000000"
+      - key: MAX_MESSAGE_BYTES
+        value: "40000000"
+      - key: SESSION_TTL_HOURS
+        value: "12"
+
+  - type: worker
+    name: rolefield-olv-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm run worker
+    autoDeployTrigger: checksPass
+    maxShutdownDelaySeconds: 120
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: DATABASE_URL
+        fromDatabase: { name: rolefield-olv-postgres, property: connectionString }
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: rolefield-olv-queue, property: connectionString }
+      - key: AWS_REGION
+        value: us-east-1
+      - key: SES_REGION
+        value: us-east-1
+      - key: S3_REGION
+        value: us-east-1
+      - key: S3_BUCKET
+        sync: false
+      - key: SES_CONFIGURATION_SET
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: WORKER_CONCURRENCY
+        value: "5"
+
+  - type: keyvalue
+    name: rolefield-olv-queue
+    region: oregon
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
 
 databases:
-  - name: rolefield-postgres
-    plan: free
+  - name: rolefield-olv-postgres
+    databaseName: rolefield_olv
+    user: rolefield_olv
+    region: oregon
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+    ipAllowList: []

@@ -193,6 +193,7 @@ export default function Home() {
       <nav id="main-nav" className={menu ? "open" : ""} aria-label="Primary navigation">
         {["platform","agents","use-cases","languages","security"].map((id,i)=><a key={id} href={`#${id}`} onClick={()=>setMenu(false)}>{t.nav[i]}</a>)}
         <a href="/roi-calculator" onClick={()=>setMenu(false)}>ROI calculator</a>
+        <a href="/login" onClick={()=>setMenu(false)}>App</a>
         <div className="mobile-nav-actions"><button data-no-translate onClick={()=>setLocale(locale === "en" ? "ar" : "en")}>{locale === "en" ? "العربية" : "English"}</button><button onClick={openScheduler}>{t.demo}</button></div>
       </nav>
       <div className="nav-actions"><button className="language-switch" data-no-translate onClick={()=>setLocale(locale === "en" ? "ar" : "en")}>{locale === "en" ? "العربية" : "English"}</button><button className="button dark compact" onClick={openScheduler}>{t.demo}</button></div>

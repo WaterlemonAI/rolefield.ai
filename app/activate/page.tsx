@@ -1,0 +1,1 @@
+import { ActivateForm } from "./activate-form";export const metadata={title:"Activate OLV account",robots:{index:false,follow:false}};export default async function Page({searchParams}:{searchParams:Promise<{token?:string}>}){return <ActivateForm token={(await searchParams).token||""}/>}
