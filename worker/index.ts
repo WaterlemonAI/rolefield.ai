@@ -13,6 +13,7 @@ import {
   SesMailProvider,
 } from "../lib/olv/aws.js";
 import { sanitizeFilename } from "../lib/olv/validation.js";
+import { accountConfig, smtpTransport, type StoredExternalMailAccount } from "../lib/olv/external-mail.js";
 
 for (const key of [
   "DATABASE_URL",
@@ -264,7 +265,13 @@ async function outbound(job: Job) {
         references: message.reference_ids,
         attachments: loaded,
       });
-      const providerMessageId = await provider.sendRaw(raw);
+      const external = await db.query<StoredExternalMailAccount>("SELECT * FROM external_mail_accounts WHERE organization_id=$1 AND mailbox_id=$2 AND status<>'DISCONNECTED'", [organizationId, message.mailbox_id]);
+      let providerMessageId: string;
+      if (external.rows[0]) {
+        const transport = smtpTransport(accountConfig(external.rows[0]));
+        const result = await transport.sendMail({ envelope: { from, to: [...by("TO"), ...by("CC"), ...by("BCC")] }, raw: Buffer.from(raw) });
+        providerMessageId = result.messageId || message.internet_message_id;
+      } else providerMessageId = await provider.sendRaw(raw);
       await db.query(
         "UPDATE messages SET state='SENT',sent_at=now(),provider_message_id=$3 WHERE id=$1 AND organization_id=$2",
         [messageId, organizationId, providerMessageId],

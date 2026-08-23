@@ -42,26 +42,40 @@ type Department = { id: string; name: string };
 type Module = "MAILBOX" | "VOICE" | "SOCIAL" | "DOCUMENTS";
 const ALL_MODULES: Module[] = ["MAILBOX", "VOICE", "SOCIAL", "DOCUMENTS"];
 type LiveStatus = { state: string; identity: boolean; dkim: boolean; requiredDns: boolean; health: "GREEN" | "AMBER" | "RED"; checkedAt: string };
+type ExternalAccount = { id:string;email:string;displayName:string;imapHost:string;smtpHost:string;status:string;lastSyncedAt:string|null;lastError:string|null;mailboxId:string };
 export function AdminConsole() {
   const [domains, setDomains] = useState<Domain[]>([]),
     [boxes, setBoxes] = useState<Box[]>([]),
     [users, setUsers] = useState<User[]>([]),
     [departments, setDepartments] = useState<Department[]>([]),
+    [externalAccounts, setExternalAccounts] = useState<ExternalAccount[]>([]),
+    [mailPath, setMailPath] = useState<"imap"|"domain">("imap"),
+    [provider, setProvider] = useState("gmail"),
+    [connectingExternal, setConnectingExternal] = useState(false),
     [live, setLive] = useState<Record<string, LiveStatus>>({}),
     [checking, setChecking] = useState<string[]>([]),
     [creatingMailbox, setCreatingMailbox] = useState(false),
     [message, setMessage] = useState("");
   const domainIds = domains.map((domain) => domain.id).join(",");
   async function load() {
-    const [d, m, a] = await Promise.all([
+    const [d, m, a, e] = await Promise.all([
       fetch("/api/olv/domains").then((r) => r.json()),
       fetch("/api/olv/mailboxes").then((r) => r.json()),
       fetch("/api/olv/admin").then((r) => r.json()),
+      fetch("/api/olv/external-mail").then((r) => r.json()),
     ]);
     setDomains(d.domains || []);
     setBoxes(m.mailboxes || []);
     setUsers(a.users || []);
     setDepartments(a.departments || []);
+    setExternalAccounts(e.accounts || []);
+  }
+  async function connectExternal(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const form=e.currentTarget; const values=Object.fromEntries(new FormData(form));
+    const presets:Record<string,{imapHost:string;imapPort:number;imapSecure:boolean;smtpHost:string;smtpPort:number;smtpSecure:boolean}>={gmail:{imapHost:"imap.gmail.com",imapPort:993,imapSecure:true,smtpHost:"smtp.gmail.com",smtpPort:465,smtpSecure:true},outlook:{imapHost:"outlook.office365.com",imapPort:993,imapSecure:true,smtpHost:"smtp.office365.com",smtpPort:587,smtpSecure:false}};
+    const preset=presets[provider]; setConnectingExternal(true); setMessage("Testing IMAP and SMTP securely…");
+    try { const response=await fetch("/api/olv/external-mail",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...values,email:String(values.email),displayName:String(values.displayName),username:String(values.username||values.email),password:String(values.password),imapHost:preset?.imapHost||String(values.imapHost),imapPort:preset?.imapPort||Number(values.imapPort),imapSecure:preset?.imapSecure??true,smtpHost:preset?.smtpHost||String(values.smtpHost),smtpPort:preset?.smtpPort||Number(values.smtpPort),smtpSecure:preset?.smtpSecure??false})}); const body=await response.json(); setMessage(response.ok?`${body.email} connected. Its Inbox and SMTP sender are now available in Mailbox.`:body.error); if(response.ok){form.reset();await load();} }
+    catch{setMessage("Unable to connect the email provider.");} finally{setConnectingExternal(false);}
   }
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -177,6 +191,18 @@ export function AdminConsole() {
         </div>
       </header>
       {message && <p className="olv-admin-status">{message}</p>}
+      <section className="olv-mail-paths">
+        <div className="olv-admin-title"><div><p>MAIL SETUP</p><h2>How do you want to use email?</h2></div></div>
+        <div className="olv-path-tabs" role="tablist" aria-label="Email setup options">
+          <button type="button" role="tab" aria-selected={mailPath==="imap"} className={mailPath==="imap"?"active":""} onClick={()=>setMailPath("imap")}><b>1. Plug in your email</b><span>Connect an existing Gmail, Outlook, or IMAP account. RoleField Inbox reads and sends through it.</span></button>
+          <button type="button" role="tab" aria-selected={mailPath==="domain"} className={mailPath==="domain"?"active":""} onClick={()=>setMailPath("domain")}><b>2. Add your domain</b><span>Verify a domain, create company addresses, and run mail through AWS SES.</span></button>
+        </div>
+        {mailPath==="imap"&&<div className="olv-imap-panel">
+          <div><h3>Connected email accounts</h3>{externalAccounts.length?externalAccounts.map(account=><article key={account.id}><b>{account.email}</b><span className={account.status.toLowerCase()}>{account.status}</span><small>{account.lastSyncedAt?`Last synced ${new Date(account.lastSyncedAt).toLocaleString()}`:"Ready for first sync"}{account.lastError?` · ${account.lastError}`:""}</small><a href="/app/mailbox">Open Inbox →</a></article>):<p>No external account connected yet.</p>}</div>
+          <form onSubmit={connectExternal}><h3>Connect an existing mailbox</h3><label>Provider<select value={provider} onChange={e=>setProvider(e.target.value)}><option value="gmail">Gmail / Google Workspace</option><option value="outlook">Microsoft 365 / Outlook</option><option value="custom">Other IMAP provider</option></select></label><label>Display name<input name="displayName" required placeholder="Arbaz Uddin" /></label><label>Email address<input name="email" type="email" required placeholder="you@company.com" /></label><label>IMAP username<input name="username" placeholder="Usually the full email address" /></label><label>App password<input name="password" type="password" autoComplete="new-password" required placeholder="Provider app password" /><small>Use a provider-generated app password. It is encrypted before storage and is never shown again.</small></label>{provider==="custom"&&<div className="olv-server-grid"><label>IMAP host<input name="imapHost" required placeholder="imap.example.com" /></label><label>IMAP port<input name="imapPort" type="number" defaultValue="993" required /></label><label>SMTP host<input name="smtpHost" required placeholder="smtp.example.com" /></label><label>SMTP port<input name="smtpPort" type="number" defaultValue="587" required /></label></div>}<button className="button dark" disabled={connectingExternal}>{connectingExternal?"Testing connection…":"Test and connect"}</button></form>
+        </div>}
+      </section>
+      {mailPath==="domain"&&<>
       <section>
         <div className="olv-admin-title">
           <div>
@@ -228,6 +254,7 @@ export function AdminConsole() {
           </details>
         ))}
       </section>
+      </>}
       <section>
         <div className="olv-admin-title">
           <div>

@@ -2,7 +2,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { Principal } from "@/lib/olv/session";
 type Folder = "Inbox" | "Sent" | "Drafts" | "Archive" | "Trash";
-type Mailbox = { id: string; name: string; address: string; type: string };
+type Mailbox = { id: string; name: string; address: string; type: string; transport: "IMAP"|"SES" };
 type Person = { kind: string; email: string; name?: string };
 type Thread = {
   id: string;
@@ -78,6 +78,7 @@ export function MailWorkspace({ principal }: { principal: Principal }) {
     setLoading(true);
     setError("");
     try {
+      if (folder === "Inbox") await fetch("/api/olv/external-mail/sync", { method: "POST" }).catch(() => undefined);
       const params = new URLSearchParams({ folder });
       if (mailboxId) params.set("mailboxId", mailboxId);
       if (search) params.set("q", search);
@@ -301,7 +302,7 @@ export function MailWorkspace({ principal }: { principal: Principal }) {
             <i />
           </span>
           <small>SECURE MAIL WORKSPACE</small>
-          <p>SES transport · private S3 objects</p>
+          <p>{mailbox?.transport === "IMAP" ? "IMAP inbox · SMTP delivery" : "SES transport · private S3 objects"}</p>
         </div>
         <div className="olv-user">
           <span>{principal.name[0]?.toUpperCase()}</span>

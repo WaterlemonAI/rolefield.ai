@@ -11,6 +11,8 @@ import {
   verifyPassword,
   randomToken,
   tokenHash,
+  encryptSecret,
+  decryptSecret,
 } from "../lib/olv/security";
 import { readFile } from "node:fs/promises";
 import { calculateDomainHealth } from "../lib/olv/domain-verification";
@@ -48,6 +50,13 @@ test("tokens are random and only hashes need persistence", () => {
   assert.notEqual(a, b);
   assert.equal(tokenHash(a).length, 64);
   assert.notEqual(tokenHash(a), a);
+});
+test("external mail credentials are authenticated and encrypted at rest", () => {
+  process.env.ENCRYPTION_KEY = "test-only-encryption-key-that-is-long-enough";
+  const encrypted = encryptSecret("provider-app-password");
+  assert.notEqual(encrypted, "provider-app-password");
+  assert.equal(decryptSecret(encrypted), "provider-app-password");
+  assert.throws(() => decryptSecret(`${encrypted.slice(0, -1)}x`));
 });
 test("domain health is deterministic from real check results", () => {
   assert.equal(calculateDomainHealth({ identity: true, dkim: true, requiredRecords: [true, true, true] }), "GREEN");
@@ -106,6 +115,7 @@ test("schema carries tenant relationships and authorization indexes", async () =
     "drafts",
     "sessions",
     "audit_logs",
+    "external_mail_accounts",
   ])
     assert.match(
       sql,

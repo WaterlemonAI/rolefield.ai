@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     address: string;
     type: string;
   }>(
-    `SELECT m.id,m.name,a.address,m.type FROM mailbox_members mm JOIN mailboxes m ON m.id=mm.mailbox_id AND m.organization_id=mm.organization_id JOIN mailbox_addresses a ON a.mailbox_id=m.id AND a.is_primary WHERE mm.organization_id=$1 AND mm.user_id=$2 AND m.active ORDER BY m.name`,
+    `SELECT m.id,m.name,a.address,m.type,CASE WHEN EXISTS(SELECT 1 FROM external_mail_accounts e WHERE e.mailbox_id=m.id AND e.status<>'DISCONNECTED') THEN 'IMAP' ELSE 'SES' END transport FROM mailbox_members mm JOIN mailboxes m ON m.id=mm.mailbox_id AND m.organization_id=mm.organization_id JOIN mailbox_addresses a ON a.mailbox_id=m.id AND a.is_primary WHERE mm.organization_id=$1 AND mm.user_id=$2 AND m.active ORDER BY m.name`,
     [p.organizationId, p.userId],
   );
   if (!mailboxId)
