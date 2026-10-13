@@ -4,6 +4,7 @@ import { LogoutButton } from "./logout-button";
 
 export const metadata = { title: "RoleField App", robots: { index: false, follow: false } };
 const modules = [
+  { module:"MEETINGS", name: "Meet", eyebrow: "MEETING INTELLIGENCE", description: "Prepare, meet, present, capture decisions and turn every conversation into action.", href: "/meet", icon: "◈", active: true },
   { module:"MAILBOX", name: "Mailbox", eyebrow: "EMAIL OPERATIONS", description: "Use assigned organizational mailboxes and conversations.", href: "/app/mailbox", icon: "✉", active: true },
   { module:"CALENDAR", name: "Calendar", eyebrow: "TIME OPERATIONS", description: "Plan meetings, deadlines and focused work in your private calendar.", href: "/app/calendar", icon: "□", active: true },
   { module:"VOICE", name: "Voice", eyebrow: "VOICE OPERATIONS", description: "Manage AI voice agents, calls and conversation workflows.", icon: "◉" },

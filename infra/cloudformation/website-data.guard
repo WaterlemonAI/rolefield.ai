@@ -1,0 +1,13 @@
+let dynamodb_tables = Resources.*[ Type == 'AWS::DynamoDB::Table' ]
+
+rule dynamodb_tables_are_encrypted when %dynamodb_tables !empty {
+  %dynamodb_tables.Properties.SSESpecification.SSEEnabled == true
+}
+
+rule dynamodb_tables_have_point_in_time_recovery when %dynamodb_tables !empty {
+  %dynamodb_tables.Properties.PointInTimeRecoverySpecification.PointInTimeRecoveryEnabled == true
+}
+
+rule dynamodb_tables_use_on_demand_billing when %dynamodb_tables !empty {
+  %dynamodb_tables.Properties.BillingMode == 'PAY_PER_REQUEST'
+}

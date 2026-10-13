@@ -1,0 +1,620 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Rolefield production AWS service plane for a Render-hosted application in us-east-1.
+  Provisions encrypted object storage and delivery, queues, events, secrets, email
+  configuration, logging, and audit history. It does not provision application compute.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - production
+      - staging
+    Description: Deployment environment used in tags and generated resource names.
+  CloudFrontPublicKeyPem:
+    Type: String
+    NoEcho: true
+    AllowedPattern: '(?s)^-----BEGIN PUBLIC KEY-----.*-----END PUBLIC KEY-----[\r\n]*$'
+    ConstraintDescription: Must be a PEM-encoded public key.
+    Description: >-
+      PEM public key whose private counterpart is held by the Render application for
+      CloudFront signed URLs or cookies. This template never stores the private key.
+  LogRetentionDays:
+    Type: Number
+    Default: 365
+    AllowedValues: [30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653]
+    Description: Retention period for the CloudWatch application/audit log group.
+
+Resources:
+  ServiceKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub '${AWS::StackName} shared service-plane encryption key'
+      EnableKeyRotation: true
+      PendingWindowInDays: 30
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AccountAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: SqsUseWithinAccount
+            Effect: Allow
+            Principal:
+              Service: sqs.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+          - Sid: SecretsManagerUseWithinAccount
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:GenerateDataKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                kms:CallerAccount: !Ref AWS::AccountId
+                kms:ViaService: !Sub 'secretsmanager.${AWS::Region}.${AWS::URLSuffix}'
+          - Sid: CloudWatchLogsUse
+            Effect: Allow
+            Principal:
+              Service: !Sub 'logs.${AWS::Region}.${AWS::URLSuffix}'
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey
+              - kms:ReEncrypt*
+            Resource: '*'
+            Condition:
+              ArnLike:
+                kms:EncryptionContext:aws:logs:arn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/rolefield/${AWS::StackName}/*'
+          - Sid: CloudFrontReadAssets
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - kms:Decrypt
+            Resource: '*'
+            Condition:
+              ArnLike:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*'
+              StringEquals:
+                AWS:SourceAccount: !Ref AWS::AccountId
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  ServiceKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${AWS::StackName}-service'
+      TargetKeyId: !Ref ServiceKey
+
+  AssetsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              KMSMasterKeyID: !GetAtt ServiceKey.Arn
+              SSEAlgorithm: aws:kms
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  AssetsOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Description: !Sub '${AWS::StackName} private S3 assets origin'
+        Name: !Sub '${AWS::StackName}-assets-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  AssetsSigningPublicKey:
+    Type: AWS::CloudFront::PublicKey
+    Properties:
+      PublicKeyConfig:
+        CallerReference: !Sub '${AWS::StackName}-${AWS::AccountId}'
+        Comment: !Sub '${AWS::StackName} Render signed asset URLs'
+        EncodedKey: !Ref CloudFrontPublicKeyPem
+        Name: !Sub '${AWS::StackName}-assets-signing-key'
+
+  AssetsTrustedKeyGroup:
+    Type: AWS::CloudFront::KeyGroup
+    Properties:
+      KeyGroupConfig:
+        Comment: !Sub '${AWS::StackName} trusted asset signing keys'
+        Items:
+          - !Ref AssetsSigningPublicKey
+        Name: !Sub '${AWS::StackName}-assets-trusted-keys'
+
+  AssetsDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub '${AWS::StackName} private assets'
+        DefaultCacheBehavior:
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: assets
+          TrustedKeyGroups:
+            - !Ref AssetsTrustedKeyGroup
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        Origins:
+          - DomainName: !GetAtt AssetsBucket.RegionalDomainName
+            Id: assets
+            OriginAccessControlId: !GetAtt AssetsOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+          MinimumProtocolVersion: TLSv1.2_2021
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  AssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AssetsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt AssetsBucket.Arn
+              - !Sub '${AssetsBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: DenyUnencryptedObjectUploads
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${AssetsBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption: aws:kms
+          - Sid: DenyWrongKmsKey
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${AssetsBucket.Arn}/*'
+            Condition:
+              StringNotEquals:
+                s3:x-amz-server-side-encryption-aws-kms-key-id: !GetAtt ServiceKey.Arn
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${AssetsBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${AssetsDistribution}'
+                AWS:SourceAccount: !Ref AWS::AccountId
+
+  AuditBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: AuditRetention
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 2555
+            ExpirationInDays: 2555
+            Transitions:
+              - StorageClass: GLACIER
+                TransitionInDays: 90
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  AuditBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AuditBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt AuditBucket.Arn
+              - !Sub '${AuditBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: CloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt AuditBucket.Arn
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}-audit'
+          - Sid: CloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${AuditBucket.Arn}/AWSLogs/${AWS::AccountId}/*'
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}-audit'
+
+  ApplicationLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      LogGroupName: !Sub '/rolefield/${AWS::StackName}/application'
+      KmsKeyId: !GetAtt ServiceKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  CloudTrailLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}-audit'
+      Policies:
+        - PolicyName: WriteCloudTrailLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: logs:CreateLogStream
+                Resource: !Sub '${ApplicationLogGroup.Arn}:log-stream:${AWS::AccountId}_CloudTrail_${AWS::Region}*'
+              - Effect: Allow
+                Action: logs:PutLogEvents
+                Resource: !Sub '${ApplicationLogGroup.Arn}:log-stream:${AWS::AccountId}_CloudTrail_${AWS::Region}*'
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  AuditTrail:
+    Type: AWS::CloudTrail::Trail
+    DependsOn: AuditBucketPolicy
+    Properties:
+      CloudWatchLogsLogGroupArn: !GetAtt ApplicationLogGroup.Arn
+      CloudWatchLogsRoleArn: !GetAtt CloudTrailLogRole.Arn
+      EnableLogFileValidation: true
+      EventSelectors:
+        - IncludeManagementEvents: true
+          ReadWriteType: All
+      IncludeGlobalServiceEvents: true
+      IsLogging: true
+      IsMultiRegionTrail: true
+      S3BucketName: !Ref AuditBucket
+      TrailName: !Sub '${AWS::StackName}-audit'
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  DocumentProcessingDlq:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  DocumentProcessingQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt DocumentProcessingDlq.Arn, maxReceiveCount: 5}
+      VisibilityTimeout: 300
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  ScreenshotIntelligenceDlq:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  ScreenshotIntelligenceQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt ScreenshotIntelligenceDlq.Arn, maxReceiveCount: 5}
+      VisibilityTimeout: 300
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  MeetingPostprocessingDlq:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  MeetingPostprocessingQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt MeetingPostprocessingDlq.Arn, maxReceiveCount: 5}
+      VisibilityTimeout: 300
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  NotificationDeliveryDlq:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  NotificationDeliveryQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt NotificationDeliveryDlq.Arn, maxReceiveCount: 5}
+      VisibilityTimeout: 300
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  CalendarSyncDlq:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  CalendarSyncQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt CalendarSyncDlq.Arn, maxReceiveCount: 5}
+      VisibilityTimeout: 300
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  KnowledgeProcessingDlq:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  KnowledgeProcessingQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt KnowledgeProcessingDlq.Arn, maxReceiveCount: 5}
+      VisibilityTimeout: 300
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  TrainingProcessingDlq:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  TrainingProcessingQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId: !GetAtt ServiceKey.Arn
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy: {deadLetterTargetArn: !GetAtt TrainingProcessingDlq.Arn, maxReceiveCount: 5}
+      VisibilityTimeout: 300
+      Tags: [{Key: Project, Value: rolefield}, {Key: Environment, Value: !Ref Environment}]
+  DomainEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub '${AWS::StackName}-domain'
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  ApplicationSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub '${AWS::StackName} Render application secret container; populate out of band'
+      KmsKeyId: !GetAtt ServiceKey.Arn
+      Name: !Sub '${AWS::StackName}/application'
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+
+  SesConfigurationSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Sub '${AWS::StackName}-transactional'
+      ReputationOptions:
+        ReputationMetricsEnabled: true
+      SendingOptions:
+        SendingEnabled: true
+
+Outputs:
+  AwsRegion:
+    Description: Render environment value for S3_REGION, MEETING_SQS_REGION, and SES_REGION.
+    Value: !Ref AWS::Region
+  AssetsBucketName:
+    Description: Render environment value for S3_BUCKET.
+    Value: !Ref AssetsBucket
+  AssetsBucketArn:
+    Description: ARN used when granting the Render principal least-privilege object access.
+    Value: !GetAtt AssetsBucket.Arn
+  AssetsKmsKeyArn:
+    Description: CMK ARN used by S3, SQS, Secrets Manager, and CloudWatch Logs.
+    Value: !GetAtt ServiceKey.Arn
+  CloudFrontDomainName:
+    Description: Render environment value for the private asset delivery hostname.
+    Value: !GetAtt AssetsDistribution.DomainName
+  CloudFrontDistributionId:
+    Description: CloudFront distribution identifier.
+    Value: !Ref AssetsDistribution
+  CloudFrontKeyPairId:
+    Description: Render environment value paired with the externally held signing private key.
+    Value: !Ref AssetsSigningPublicKey
+  ApplicationSecretArn:
+    Description: Secret container ARN; populate it out of band and grant the Render principal read access.
+    Value: !Ref ApplicationSecret
+  EventBusName:
+    Description: Render environment value for the custom EventBridge bus name.
+    Value: !Ref DomainEventBus
+  EventBusArn:
+    Description: ARN used when granting the Render principal events:PutEvents.
+    Value: !GetAtt DomainEventBus.Arn
+  SesConfigurationSetName:
+    Description: Render environment value for SES_CONFIGURATION_SET.
+    Value: !Ref SesConfigurationSet
+  ApplicationLogGroupName:
+    Description: CloudWatch log group for application and CloudTrail log delivery.
+    Value: !Ref ApplicationLogGroup
+  AuditTrailArn:
+    Description: ARN of the multi-region CloudTrail trail.
+    Value: !GetAtt AuditTrail.Arn
+  SqsDocumentProcessingUrl:
+    Description: Render environment value for SQS_DOCUMENT_PROCESSING_URL.
+    Value: !Ref DocumentProcessingQueue
+  SqsScreenshotIntelligenceUrl:
+    Description: Render environment value for SQS_SCREENSHOT_INTELLIGENCE_URL.
+    Value: !Ref ScreenshotIntelligenceQueue
+  SqsMeetingPostprocessingUrl:
+    Description: Render environment value for SQS_MEETING_POSTPROCESSING_URL.
+    Value: !Ref MeetingPostprocessingQueue
+  SqsNotificationDeliveryUrl:
+    Description: Render environment value for SQS_NOTIFICATION_DELIVERY_URL and INBOUND_SQS_QUEUE_URL.
+    Value: !Ref NotificationDeliveryQueue
+  SqsCalendarSyncUrl:
+    Description: Render environment value for SQS_CALENDAR_SYNC_URL.
+    Value: !Ref CalendarSyncQueue
+  SqsKnowledgeProcessingUrl:
+    Description: Render environment value for SQS_KNOWLEDGE_PROCESSING_URL.
+    Value: !Ref KnowledgeProcessingQueue
+  SqsTrainingProcessingUrl:
+    Description: Render environment value for SQS_TRAINING_PROCESSING_URL.
+    Value: !Ref TrainingProcessingQueue

@@ -1,0 +1,14 @@
+import { z } from "zod";
+
+export const visibilitySchema=z.enum(["PUBLIC_MEETING","ORGANIZATION_PRIVATE","USER_PRIVATE","ADMIN_PRIVATE"]);
+export const participantSchema=z.object({email:z.email().max(320),name:z.string().trim().min(1).max(200).optional(),userId:z.uuid().optional(),organizationName:z.string().trim().min(1).max(200).optional(),role:z.string().trim().min(1).max(80).default("ATTENDEE")});
+const fields=z.object({title:z.string().trim().min(1).max(200),description:z.string().trim().max(10000).default(""),startsAt:z.iso.datetime({offset:true}),endsAt:z.iso.datetime({offset:true}),timezone:z.string().trim().min(1).max(80).default("UTC"),location:z.string().trim().max(300).default(""),recordingRequested:z.boolean().default(false),transcriptionRequested:z.boolean().default(false)});
+export const createMeetingSchema=fields.extend({participants:z.array(participantSchema).max(500).default([])}).superRefine((v,c)=>{if(new Date(v.endsAt)<=new Date(v.startsAt))c.addIssue({code:"custom",message:"End time must be after start time.",path:["endsAt"]});});
+export const updateMeetingSchema=fields.partial().extend({status:z.enum(["SCHEDULED","IN_PROGRESS","COMPLETED","CANCELLED"]).optional()}).superRefine((v,c)=>{if(v.startsAt&&v.endsAt&&new Date(v.endsAt)<=new Date(v.startsAt))c.addIssue({code:"custom",message:"End time must be after start time.",path:["endsAt"]});});
+export const preparationSchema=z.object({status:z.enum(["NOT_STARTED","IN_PROGRESS","READY"]),agenda:z.string().max(30000).default(""),objectives:z.string().max(30000).default(""),brief:z.string().max(100000).default("")});
+export const evidenceSchema=z.object({kind:z.string().trim().min(1).max(60),content:z.string().trim().min(1).max(100000),sourceUri:z.url().max(2000).optional(),occurredAt:z.iso.datetime({offset:true}).optional(),visibility:visibilitySchema.default("ORGANIZATION_PRIVATE")});
+export const actionSchema=z.object({title:z.string().trim().min(1).max(300),description:z.string().trim().max(10000).default(""),assigneeUserId:z.uuid().optional(),dueAt:z.iso.datetime({offset:true}).optional(),visibility:visibilitySchema.default("ORGANIZATION_PRIVATE"),evidenceId:z.uuid().optional()});
+export const actionUpdateSchema=z.object({title:z.string().trim().min(1).max(300).optional(),description:z.string().trim().max(10000).optional(),assigneeUserId:z.uuid().optional(),dueAt:z.iso.datetime({offset:true}).optional(),status:z.enum(["OPEN","IN_PROGRESS","COMPLETED","CANCELLED"]).optional()}).strict().refine(v=>Object.keys(v).length>0,"No changes supplied.");
+export const nudgeSchema=z.object({message:z.string().trim().min(1).max(2000),evidenceId:z.uuid().optional()});
+export const invitationSchema=z.object({participantId:z.uuid(),expiresInHours:z.number().int().min(1).max(720).default(72)});
+export const revokeInvitationSchema=z.object({invitationId:z.uuid()});

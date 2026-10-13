@@ -1,0 +1,16 @@
+aws_region      = "ap-south-1"
+environment     = "production"
+image_tag       = "replace-with-immutable-git-sha"
+alb_certificate_arn = "arn:aws:acm:ap-south-1:123456789012:certificate/replace-me"
+domain_names    = []
+cloudfront_certificate_arn = null
+app_url                    = "https://app.example.com"
+api_url                    = "https://app.example.com/api"
+ses_region                 = "ap-south-1"
+ses_configuration_set      = "rolefield-events"
+invitation_from_email      = "invite@example.com"
+cloudfront_public_key_pem  = <<EOT
+-----BEGIN PUBLIC KEY-----
+REPLACE_WITH_CLOUDFRONT_SIGNING_PUBLIC_KEY
+-----END PUBLIC KEY-----
+EOT

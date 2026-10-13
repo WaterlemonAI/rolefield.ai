@@ -1,24 +1,6 @@
-import { getDb } from "@/db";
 import { sendLeadEmails } from "@/lib/email";
 import { guardLeadRequest } from "@/lib/request-guard";
-
-const schemaSql = `CREATE TABLE IF NOT EXISTS demo_bookings (
-  id BIGSERIAL PRIMARY KEY,
-  booking_id TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  company TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  language TEXT NOT NULL,
-  use_case TEXT NOT NULL,
-  attendees TEXT,
-  notes TEXT,
-  demo_date TEXT NOT NULL,
-  demo_time TEXT NOT NULL,
-  timezone TEXT NOT NULL DEFAULT 'Asia/Dubai',
-  status TEXT NOT NULL DEFAULT 'confirmed',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-)`;
+import { storeDemoBooking } from "@/lib/website-lead-store";
 
 export async function POST(request: Request) {
   try {
@@ -40,16 +22,19 @@ export async function POST(request: Request) {
       language: String(body.language), useCase: String(body.useCase),
       notes: String(body.notes || "").trim(), date: String(body.date), time: String(body.time),
     };
-    const db = getDb();
-    await db.query(schemaSql);
-    await db.query("CREATE INDEX IF NOT EXISTS idx_demo_bookings_slot ON demo_bookings(demo_date, demo_time)");
-    await db.query({ text: `INSERT INTO demo_bookings
-      (booking_id, name, email, company, phone, language, use_case, attendees, notes, demo_date, demo_time, timezone, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Asia/Dubai', 'confirmed', $12)`, values: [
-        bookingId, lead.name, email, lead.company, lead.phone,
-        lead.language, lead.useCase, String(body.attendees || "").trim(), lead.notes,
-        String(body.date), String(body.time), new Date().toISOString()
-      ] });
+    await storeDemoBooking({
+      bookingId,
+      name: lead.name,
+      email,
+      company: lead.company,
+      phone: lead.phone,
+      language: lead.language,
+      useCase: lead.useCase,
+      attendees: String(body.attendees || "").trim(),
+      notes: lead.notes,
+      date: String(body.date),
+      time: String(body.time),
+    });
     let emailSent = false;
     try { emailSent = (await sendLeadEmails(lead)).sent; }
     catch (error) { console.error("Demo saved, but email delivery failed", error); }

@@ -16,23 +16,23 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rolefield.ai"),
-  title: { default: "RoleField — Autonomous AI Workforce for the GCC", template: "%s | RoleField" },
-  description: "Arabic-native, multilingual AI agents that run customer operations end to end across the GCC. A company by AI7Lab, UAE.",
+  title: { default: "Rolefield — Enterprise AI for the Real World", template: "%s | Rolefield" },
+  description: "Rolefield puts enterprise AI to work across customer conversations, physical service and live environments—at a scale of 15 million conversations every month.",
   alternates: { canonical: "/" },
-  keywords: ["AI agents", "customer operations", "voice AI", "GCC", "Arabic AI", "workflow automation"],
+  keywords: ["enterprise AI", "customer operations", "voice AI", "agentic kiosk", "real-world intelligence", "AI automation"],
   authors: [{ name: "RoleField", url: "https://rolefield.ai" }],
   creator: "AI7Lab",
   publisher: "AI7Lab",
   openGraph: {
-    title: "RoleField — One AI workforce for every GCC customer",
-    description: "Configurable multilingual agents that converse, act, follow up and improve around your business outcomes.",
+    title: "Rolefield — Lower the cost. Raise the standard.",
+    description: "Enterprise AI across customer conversations, physical spaces and live environments.",
     type: "website",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "RoleField voice AI for the GCC" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "RoleField — One AI workforce for every GCC customer",
-    description: "Configurable multilingual agents that converse, act, follow up and improve around your business outcomes.",
+    title: "Rolefield — Lower the cost. Raise the standard.",
+    description: "Enterprise AI across customer conversations, physical spaces and live environments.",
     images: ["/og.png"],
   },
   icons: {
@@ -64,7 +64,7 @@ export default function RootLayout({
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org", "@type": "Organization", name: "RoleField", url: "https://rolefield.ai",
           logo: "https://rolefield.ai/rolefield-logo.png", email: "voice@ai7lab.net",
-          parentOrganization: { "@type": "Organization", name: "AI7Lab" },
+          parentOrganization: { "@type": "Organization", name: "AI7Lab Tech Evolution Pte. Ltd.", url: "https://www.ai7lab.net" },
           address: { "@type": "PostalAddress", addressLocality: "Dubai", addressRegion: "DIFC", addressCountry: "AE" },
         }).replace(/</g, "\\u003c") }} />
         {children}

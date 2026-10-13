@@ -8,22 +8,22 @@ transport, and private AWS S3 objects for raw MIME and attachments.
 
 Requirements:
 
-- Node.js 22.13 or newer
+- Node.js 24.x (the supported production major)
 - PostgreSQL
 - Redis/Valkey
 - AWS credentials with SES and private S3 access for real mail paths
 
 ```bash
 cp .env.example .env.local
-npm install
-npm run db:migrate
-npm run dev
+pnpm install --frozen-lockfile
+pnpm db:migrate
+pnpm dev
 ```
 
 Run the worker in a second terminal:
 
 ```bash
-npm run worker
+pnpm worker
 ```
 
 ## OLV product
@@ -46,7 +46,7 @@ the existing marketing tables plus 26 normalized OLV tables, enum constraints,
 tenant-safe composite foreign keys and search/authorization indexes.
 
 ```bash
-npm run db:migrate
+pnpm db:migrate
 ```
 
 Run it twice against a fresh database to verify idempotence.
@@ -72,39 +72,35 @@ Run it twice against a fresh database to verify idempotence.
 For local AWS testing, use real sandbox resources. Production adapters are not
 replaced by mocks; automated tests isolate MIME and provider boundaries.
 
-## Lead notifications with Brevo
+## Website conversion storage and email
 
-Demo bookings and callback requests are always saved to PostgreSQL first. When
-Brevo is configured, the site also sends a lead notification to the RoleField
-team and an acknowledgement to the prospect.
+Subscribers and demo bookings are written to retained Amazon DynamoDB tables
+before any email delivery is attempted. A rejected or unavailable email request
+therefore never loses the submitted data. The tables are provisioned by
+`infra/cloudformation/rolefield-website-data.yaml` with on-demand billing,
+encryption and point-in-time recovery.
 
-1. Authenticate `mail.rolefield.ai` in Brevo and register the sender address.
-2. Create a sending API key.
-3. Configure these values locally and in the Render service environment:
-   `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`,
-   `LEAD_NOTIFICATION_EMAIL`, and `REPLY_TO_EMAIL`.
-
-The website uses Brevo templates 1–4 for demo and callback notifications.
-Templates 5–7 provide a demo reminder, demo follow-up, and reusable customer
-communication email for later workflows.
-
-The API key must stay server-side and must not be prefixed with `NEXT_PUBLIC_`.
-Without it, lead capture still works and email delivery is skipped.
+Amazon SES sends team notifications and customer acknowledgements from the
+verified Rolefield domain. Configure `WEBSITE_SUBSCRIBER_TABLE`,
+`WEBSITE_DEMO_BOOKING_TABLE`, `WEBSITE_SENDER_EMAIL`,
+`LEAD_NOTIFICATION_EMAIL`, `SUBSCRIBER_NOTIFICATION_EMAIL` and
+`REPLY_TO_EMAIL` in the application runtime. `WEBSITE_SES_CONFIGURATION_SET`
+is optional. Never prefix server-side AWS or email settings with `NEXT_PUBLIC_`.
 
 ## Validation
 
 ```bash
-npm run lint
-npm run typecheck
-npm test
-npm run build
-npm audit --omit=dev
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm audit --prod
 ```
 
 With a disposable migrated PostgreSQL database:
 
 ```bash
-TEST_DATABASE_URL=postgresql://... npx tsx --test tests/db.test.ts
+TEST_DATABASE_URL=postgresql://... pnpm exec tsx --test tests/db.test.ts
 ```
 
 ## Deploying on Render

@@ -35,7 +35,7 @@ export function BusinessHeader() {
 export function BusinessFooter() {
   return <footer className="business-footer">
     <div className="business-footer-grid">
-      <div><Link className="brand" href="/" aria-label="RoleField.ai home"><Brand /></Link><p>Autonomous customer operations for ambitious businesses across the GCC.</p><small>A company by AI7Lab, UAE.</small></div>
+      <div><Link className="brand" href="/" aria-label="RoleField.ai home"><Brand /></Link><p>Real-world AI for conversations, physical service and live environments.</p><small>A product of AI7Lab Tech Evolution Pte. Ltd.</small></div>
       <div><b>COMPANY</b>{companyLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}<Link href="/roi-calculator">ROI calculator</Link></div>
       <div><b>LEGAL</b><Link href="/terms">Terms of use</Link><Link href="/privacy">Privacy</Link></div>
       <div><b>CONTACT</b><a href="mailto:voice@ai7lab.net">voice@ai7lab.net</a><p>DIFC, Dubai, UAE</p></div>

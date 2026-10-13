@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Durable AWS storage for Rolefield website subscribers and demo bookings.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - production
+      - staging
+
+Resources:
+  SubscriberTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub '${AWS::StackName}-subscribers'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: DataClassification
+          Value: customer-contact
+
+  DemoBookingTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub '${AWS::StackName}-demo-bookings'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: bookingId
+          AttributeType: S
+        - AttributeName: slotKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: bookingId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: slot-index
+          KeySchema:
+            - AttributeName: slotKey
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Project
+          Value: rolefield
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: DataClassification
+          Value: customer-contact
+
+Outputs:
+  SubscriberTableName:
+    Description: Set as WEBSITE_SUBSCRIBER_TABLE in the application runtime.
+    Value: !Ref SubscriberTable
+  DemoBookingTableName:
+    Description: Set as WEBSITE_DEMO_BOOKING_TABLE in the application runtime.
+    Value: !Ref DemoBookingTable

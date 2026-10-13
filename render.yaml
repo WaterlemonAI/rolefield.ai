@@ -4,15 +4,15 @@ services:
     runtime: node
     region: oregon
     plan: starter
-    buildCommand: npm ci && npm run build
-    preDeployCommand: npm run db:migrate
-    startCommand: npm start
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    preDeployCommand: pnpm db:migrate
+    startCommand: pnpm start
     healthCheckPath: /api/health
     autoDeployTrigger: checksPass
     maxShutdownDelaySeconds: 30
     envVars:
       - key: NODE_VERSION
-        value: 22.13.0
+        value: 24
       - key: DATABASE_URL
         fromDatabase: { name: rolefield-olv-postgres, property: connectionString }
       - key: REDIS_URL
@@ -29,6 +29,18 @@ services:
         generateValue: true
       - key: AWS_REGION
         value: us-east-1
+      - key: WEBSITE_SUBSCRIBER_TABLE
+        value: rolefield-website-data-subscribers
+      - key: WEBSITE_DEMO_BOOKING_TABLE
+        value: rolefield-website-data-demo-bookings
+      - key: WEBSITE_SENDER_EMAIL
+        value: hello@rolefield.ai
+      - key: LEAD_NOTIFICATION_EMAIL
+        value: arbaz@ai7lab.net
+      - key: SUBSCRIBER_NOTIFICATION_EMAIL
+        value: arbaz@ai7lab.net
+      - key: REPLY_TO_EMAIL
+        value: arbaz@ai7lab.net
       - key: SES_REGION
         value: us-east-1
       - key: S3_REGION
@@ -61,13 +73,13 @@ services:
     runtime: node
     region: oregon
     plan: starter
-    buildCommand: npm ci
-    startCommand: npm run worker
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: pnpm worker
     autoDeployTrigger: checksPass
     maxShutdownDelaySeconds: 120
     envVars:
       - key: NODE_VERSION
-        value: 22.13.0
+        value: 24
       - key: DATABASE_URL
         fromDatabase: { name: rolefield-olv-postgres, property: connectionString }
       - key: REDIS_URL
