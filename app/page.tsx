@@ -97,8 +97,8 @@ export default function Home() {
 
         <section className={styles.proof} id="enterprise">
           <div className={styles.proofHead}>
-            <h2>Scale today.<br />Advantage tomorrow.</h2>
-            <p>Rolefield already operates where reliability and economics matter. That same foundation now extends from customer conversations into physical service and real-world intelligence.</p>
+            <h2>Serve more people.<br />Grow without growing costs.</h2>
+            <p>Rolefield already supports millions of customer conversations every month. The same proven foundation now helps teams deliver better service across calls, physical spaces and live environments.</p>
           </div>
           <div className={styles.proofStage}>
             <div className={styles.proofNumber}><span className={styles.mono}>Operating scale / Today</span><strong>15M</strong><p>customer conversations every month</p></div>
@@ -111,7 +111,10 @@ export default function Home() {
         </section>
 
         <section className={styles.about} id="about">
-          <div className={styles.aboutMark} aria-hidden="true"><span>AI</span><strong>7</strong><i /></div>
+          <div className={styles.aboutMark}>
+            <Image src="/ai7lab-logo.png" alt="AI7Lab" width={607} height={318} sizes="(max-width: 520px) 68vw, (max-width: 820px) 34vw, 300px" />
+            <i aria-hidden="true" />
+          </div>
           <div className={styles.aboutCopy}>
             <span className={`${styles.kicker} ${styles.mono}`}>About / Rolefield × AI7Lab</span>
             <h2>Built to move AI<br />into the real world.</h2>
