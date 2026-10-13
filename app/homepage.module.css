@@ -59,14 +59,16 @@
 .sectionHead, .productsIntro, .intelligenceHead, .proofHead { display: grid; grid-template-columns: 1fr .7fr; gap: 50px; align-items: end; margin-bottom: 42px; }
 .sectionHead h2, .productsIntro h2, .intelligenceHead h2, .proofHead h2, .close h2 { margin: 0; font-size: clamp(46px, 6vw, 76px); font-weight: 400; letter-spacing: -.06em; line-height: .95; }
 .sectionHead p { margin: 0; color: #a5bad0; font-size: 14px; line-height: 1.7; }
-.filmStage { position: relative; overflow: hidden; aspect-ratio: 16 / 8.2; background: #0e2a4c; }
-.filmScene { position: absolute; inset: 0; opacity: 0; transform: scale(1.035); transition: opacity .7s ease, transform 1.4s ease; pointer-events: none; }
+.filmStage { position: relative; width: min(100%, 1180px); min-height: 620px; margin-inline: auto; overflow: hidden; border: 1px solid rgba(133,185,229,.18); background: radial-gradient(circle at 25% 18%, rgba(61,151,231,.2), transparent 36%), linear-gradient(rgba(135,183,226,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(135,183,226,.055) 1px, transparent 1px), #0a2341; background-size: auto, 44px 44px, 44px 44px, auto; }
+.filmScene { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0,1fr) 270px; gap: 42px; align-items: center; padding: 48px; opacity: 0; transform: scale(1.018); transition: opacity .7s ease, transform 1.4s ease; pointer-events: none; }
 .filmScene.active { opacity: 1; transform: scale(1); pointer-events: auto; }
-.filmScene img { object-fit: cover; }
-.filmScene::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(3,17,34,.8)); }
-.filmCaption { position: absolute; z-index: 2; left: 28px; right: 28px; bottom: 26px; display: flex; justify-content: space-between; align-items: end; gap: 24px; }
-.filmCaption strong { display: block; margin-top: 8px; font-size: 34px; font-weight: 400; letter-spacing: -.04em; }
-.filmCaption p { max-width: 430px; margin: 0; color: #c2d2e2; font-size: 13px; line-height: 1.55; text-align: right; }
+.filmFrame { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid rgba(170,210,242,.24); background: #f4f9fd; box-shadow: 0 34px 80px rgba(0,8,22,.35); }
+.filmFrame::after { content: ""; position: absolute; inset: 0; border: 1px solid rgba(255,255,255,.16); pointer-events: none; }
+.filmFrame img { object-fit: contain; object-position: center; }
+.filmCaption { position: relative; z-index: 2; display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 24px; }
+.filmCaption::before { content: ""; width: 38px; height: 1px; background: #69d4ef; box-shadow: 0 0 24px rgba(105,212,239,.75); }
+.filmCaption strong { display: block; margin-top: 13px; font-size: 38px; font-weight: 400; letter-spacing: -.05em; line-height: 1.02; }
+.filmCaption p { max-width: 270px; margin: 0; color: #b7cbde; font-size: 13px; line-height: 1.65; text-align: left; }
 .filmControls { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; padding-top: 18px; }
 .play { display: inline-flex; min-height: 44px; align-items: center; gap: 10px; padding: 0 14px; border: 1px solid rgba(113,180,238,.42); color: #eff7ff; background: transparent; font-size: 12px; }
 .filmProgress { height: 2px; overflow: hidden; background: rgba(255,255,255,.14); }
@@ -253,6 +255,10 @@
   .heroContent { padding-inline: 22px; }
   .heroProof { max-width: 270px; }
   .film, .products, .intelligence, .proof { padding-inline: 22px; }
+  .filmStage { min-height: 660px; }
+  .filmScene { grid-template-columns: 1fr; grid-template-rows: auto 1fr; gap: 30px; align-content: center; padding: 34px; }
+  .filmCaption { gap: 16px; }
+  .filmCaption p { max-width: 520px; }
   .chapter, .chapter:nth-of-type(even) { grid-template-columns: 1fr; }
   .chapter:nth-of-type(even) .chapterCopy { order: 0; }
   .chapterCopy, .chapter:nth-of-type(even) .chapterCopy { padding: 60px 0 42px; }
@@ -272,9 +278,9 @@
   .navAction { padding-inline: 11px; }
   .hero h1 { font-size: 58px; }
   .heroContent { padding-top: 62px; }
-  .filmStage { aspect-ratio: 3 / 4; }
-  .filmCaption { align-items: start; flex-direction: column; }
-  .filmCaption p { text-align: left; }
+  .filmStage { min-height: 570px; }
+  .filmScene { gap: 28px; padding: 18px; }
+  .filmCaption strong { font-size: 31px; }
   .filmControls { grid-template-columns: 1fr; }
   .sceneTabs { justify-content: space-between; }
   .sceneTabs button { flex: 1; }

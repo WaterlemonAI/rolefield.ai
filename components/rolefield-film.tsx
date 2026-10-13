@@ -51,7 +51,15 @@ export function RolefieldFilm() {
       <div className={styles.filmStage} aria-live="polite">
         {scenes.map((scene, index) => (
           <article className={`${styles.filmScene} ${active === index ? styles.active : ""}`} key={scene.title} aria-hidden={active !== index}>
-            <Image src={scene.src} alt={scene.alt} fill sizes="(max-width: 820px) 100vw, 94vw" />
+            <div className={styles.filmFrame}>
+              <Image
+                src={scene.src}
+                alt={scene.alt}
+                fill
+                quality={90}
+                sizes="(max-width: 520px) calc(100vw - 80px), (max-width: 820px) calc(100vw - 100px), 780px"
+              />
+            </div>
             <div className={styles.filmCaption}>
               <div><span className={styles.mono}>{scene.label}</span><strong>{scene.title}</strong></div>
               <p>{scene.copy}</p>
