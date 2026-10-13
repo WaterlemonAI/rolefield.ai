@@ -4,7 +4,7 @@ import { BusinessPage } from "@/components/business-shell";
 export const metadata: Metadata = { title: "Terms of use", description: "Terms governing the use of the RoleField website.", alternates: { canonical: "/terms" } };
 
 const sections = [
-  ["1. About these terms", "These Terms of Use govern your access to and use of the RoleField website. RoleField is a product of AI7Lab in the United Arab Emirates. By using this website, you agree to these terms. If you do not agree, please do not use the website."],
+  ["1. About these terms", "These Terms of Use govern your access to and use of the Rolefield website. Rolefield is a product of AI7Lab Tech Evolution Pte. Ltd. By using this website, you agree to these terms. If you do not agree, please do not use the website."],
   ["2. Website purpose", "This website provides general information about RoleField products and services and lets you contact us or request a demonstration. Website content is not professional, legal, financial or regulatory advice, and does not create a customer or partnership relationship."],
   ["3. Permitted use", "You may use the website for lawful business and informational purposes. You must not misuse the website, attempt unauthorised access, interfere with its operation, introduce malicious code, scrape it at scale, impersonate another person or submit false or unlawful information."],
   ["4. Intellectual property", "The website, RoleField name, logo, visual design, text, software and other content are owned by or licensed to AI7Lab and protected by applicable intellectual-property laws. No licence is granted except the limited right to access and use the website under these terms."],
@@ -15,7 +15,7 @@ const sections = [
   ["9. Privacy", "Personal information submitted through the website is handled as described in our Privacy Notice. Please do not send confidential, regulated or sensitive information through general enquiry forms."],
   ["10. Changes", "We may update the website or these terms when our services, practices or legal obligations change. Updated terms take effect when published on this page, with the effective date shown above."],
   ["11. Governing law", "These terms are governed by the laws applicable in the Dubai International Financial Centre, United Arab Emirates. Courts with competent jurisdiction in the DIFC will have exclusive jurisdiction, subject to any mandatory law that applies."],
-  ["12. Contact", "Questions about these terms may be sent to voice@ai7lab.net or addressed to RoleField, AI7Lab, DIFC, Dubai, United Arab Emirates."],
+  ["12. Contact", "Questions about these terms may be sent to voice@ai7lab.net."],
 ];
 
-export default function TermsPage() { return <BusinessPage><section className="legal-hero"><p className="eyebrow"><i /> LEGAL</p><h1>Terms of use</h1><p>Effective 18 August 2026</p></section><article className="legal-document">{sections.map(([title, body]) => <section key={title}><h2>{title}</h2><p>{body}</p></section>)}</article></BusinessPage>; }
+export default function TermsPage() { return <BusinessPage><section className="legal-hero"><p className="eyebrow"><i /> TRUST / TERMS</p><h1>Clear terms for using this site.</h1><p>Effective 18 August 2026</p></section><article className="legal-document">{sections.map(([title, body]) => <section key={title}><h2>{title}</h2><p>{body}</p></section>)}</article></BusinessPage>; }
