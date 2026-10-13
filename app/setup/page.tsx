@@ -1,10 +1,10 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 export const metadata = {
-  title: "Create OLV workspace",
+  title: "Not found",
   robots: { index: false, follow: false },
 };
 
-export default async function Page() {
-  redirect("/login");
+export default function SetupPage() {
+  notFound();
 }

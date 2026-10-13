@@ -1,1 +1,7 @@
-import { ActivateForm } from "./activate-form";export const metadata={title:"Activate OLV account",robots:{index:false,follow:false}};export default async function Page({searchParams}:{searchParams:Promise<{token?:string}>}){return <ActivateForm token={(await searchParams).token||""}/>}
+import { notFound } from "next/navigation";
+
+export const metadata = { title: "Not found", robots: { index: false, follow: false } };
+
+export default function ActivatePage() {
+  notFound();
+}

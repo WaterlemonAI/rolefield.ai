@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
-import { currentPrincipal } from "@/lib/olv/session";
-import { LoginForm } from "./login-form";
+import { notFound } from "next/navigation";
 
-export const metadata = { title: "Sign in to OLV", robots: { index: false, follow: false } };
-export default async function LoginPage() { if (await currentPrincipal()) redirect("/app"); return <LoginForm/>; }
+export const metadata = { title: "Not found", robots: { index: false, follow: false } };
+
+export default function LoginPage() {
+  notFound();
+}

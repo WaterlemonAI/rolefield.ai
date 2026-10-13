@@ -1,1 +1,7 @@
-import { PasswordForm } from "./password-form";export const metadata={title:"Reset OLV password"};export default async function Page({searchParams}:{searchParams:Promise<{token?:string}>}){return <PasswordForm mode="reset" token={(await searchParams).token||""}/>}
+import { notFound } from "next/navigation";
+
+export const metadata = { title: "Not found", robots: { index: false, follow: false } };
+
+export default function ResetPasswordPage() {
+  notFound();
+}
