@@ -155,7 +155,7 @@ UPDATE meeting_invitation_outbox SET status='FAILED',last_error='Legacy invitati
 ALTER TABLE meeting_nudges ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(200);
 UPDATE meeting_nudges SET idempotency_key='legacy:'||id::text WHERE idempotency_key IS NULL;
 ALTER TABLE meeting_nudges ALTER COLUMN idempotency_key SET NOT NULL;
-DO $$ BEGIN ALTER TABLE meeting_nudges ADD CONSTRAINT meeting_nudges_idempotency_unique UNIQUE(organization_id,meeting_id,idempotency_key); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN ALTER TABLE meeting_nudges ADD CONSTRAINT meeting_nudges_idempotency_unique UNIQUE(organization_id,meeting_id,idempotency_key); EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id,organization_id);
 CREATE INDEX IF NOT EXISTS idx_entitlements_user ON user_module_entitlements(user_id,organization_id) WHERE enabled;
