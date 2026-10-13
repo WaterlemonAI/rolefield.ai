@@ -10,8 +10,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "pnpm web:start",
-    "web:start": "pnpm config:validate && node scripts/start-production.mjs",
+    "start": "node scripts/validate-env.mjs && node scripts/migrate.mjs && node scripts/bootstrap-owner.mjs && node scripts/start-production.mjs",
+    "web:start": "node scripts/validate-env.mjs && node scripts/start-production.mjs",
     "release:migrate": "pnpm config:validate && pnpm db:migrate && pnpm db:owner",
     "test": "node --test tests/*.test.mjs && tsx --test tests/*.test.ts",
     "lint": "eslint . --ignore-pattern .next",
