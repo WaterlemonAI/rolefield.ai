@@ -1,7 +1,7 @@
 const required = [
   "DATABASE_URL", "REDIS_URL", "APP_URL", "API_URL", "OLV_SESSION_SECRET",
   "PASSWORD_PEPPER", "ENCRYPTION_KEY", "AWS_REGION", "SES_REGION",
-  "SES_CONFIGURATION_SET", "INVITATION_FROM_EMAIL", "S3_REGION", "S3_BUCKET", "S3_KMS_KEY_ID",
+  "SES_CONFIGURATION_SET", "INVITATION_FROM_EMAIL", "S3_REGION", "S3_BUCKET",
   "INBOUND_SQS_QUEUE_URL", "INBOUND_WEBHOOK_SECRET", "SES_EVENT_WEBHOOK_SECRET",
 ];
 
@@ -40,7 +40,7 @@ try {
 } catch { invalidUrls.push("DATABASE_URL"); }
 try {
   const redis = new URL(value("REDIS_URL"));
-  if (process.env.NODE_ENV === "production" && redis.protocol !== "rediss:") invalidUrls.push("REDIS_URL");
+  if (!["redis:", "rediss:"].includes(redis.protocol)) invalidUrls.push("REDIS_URL");
 } catch { invalidUrls.push("REDIS_URL"); }
 
 if (missing.length || weak.length || partial.length || invalidUrls.length) {
