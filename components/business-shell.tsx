@@ -9,9 +9,17 @@ const companyLinks = [
   ["Contact", "/contact"],
 ];
 
-export function Brand() {
+export function Brand({ stacked = false }: { stacked?: boolean }) {
   return <span className="brand-lockup">
-    <Image className="brand-logo" src="/rolefield-logo.png" alt="RoleField.ai" width={1527} height={406} priority />
+    <Image
+      className={`brand-logo ${stacked ? "brand-logo-stacked" : "brand-logo-horizontal"}`}
+      src={stacked ? "/rolefield-logo-stacked.png" : "/rolefield-logo-horizontal.png"}
+      alt="Rolefield.ai"
+      width={stacked ? 718 : 928}
+      height={stacked ? 333 : 179}
+      priority
+    />
+    {!stacked && <Image className="brand-logo brand-logo-compact" src="/rolefield-logo-compact.png" alt="" width={398} height={243} priority aria-hidden="true" />}
   </span>;
 }
 
@@ -33,7 +41,7 @@ export function BusinessHeader() {
 export function BusinessFooter() {
   return <footer className="business-footer">
     <div className="business-footer-grid">
-      <div><Link className="brand" href="/" aria-label="RoleField.ai home"><Brand /></Link><p>Enterprise AI across conversations, physical service and the live world.</p><small>A product of AI7Lab Tech Evolution Pte. Ltd.</small></div>
+      <div><Link className="brand" href="/" aria-label="RoleField.ai home"><Brand stacked /></Link><p>Enterprise AI across conversations, physical service and the live world.</p><small>A product of AI7Lab Tech Evolution Pte. Ltd.</small></div>
       <div><b>EXPLORE</b><Link href="/#products">Products</Link><Link href="/#technology">Technology</Link><Link href="/roi-calculator">ROI calculator</Link></div>
       <div><b>COMPANY</b>{companyLinks.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}</div>
       <div><b>LEGAL</b><Link href="/terms">Terms of use</Link><Link href="/privacy">Privacy</Link></div>

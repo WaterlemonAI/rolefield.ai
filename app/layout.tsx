@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Sora } from "next/font/google";
 import Script from "next/script";
 import { AnalyticsConsent } from "@/components/google-analytics";
 import "./globals.css";
 import "./business-theme.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const rolefieldSans = Sora({
+  variable: "--font-rolefield-sans",
   subsets: ["latin"],
 });
 
@@ -28,17 +28,18 @@ export const metadata: Metadata = {
     title: "Rolefield — Lower the cost. Raise the standard.",
     description: "Enterprise AI across customer conversations, physical spaces and live environments.",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "RoleField voice AI for the GCC" }],
+    images: [{ url: "/rolefield-logo-stacked.png", width: 718, height: 333, alt: "Rolefield.ai" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Rolefield — Lower the cost. Raise the standard.",
     description: "Enterprise AI across customer conversations, physical spaces and live environments.",
-    images: ["/og.png"],
+    images: ["/rolefield-logo-stacked.png"],
   },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
+    apple: "/rolefield-icon.png",
   },
 };
 
@@ -50,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${rolefieldSans.variable} ${geistMono.variable} antialiased`}
       >
         <Script id="google-consent-mode" strategy="beforeInteractive">{`
           window.dataLayer = window.dataLayer || [];

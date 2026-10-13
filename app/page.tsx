@@ -35,7 +35,8 @@ export default function Home() {
     <div className={styles.site}>
       <header className={styles.nav}>
         <Link className={styles.brand} href="#top" aria-label="Rolefield home">
-          <Image src="/rolefield-logo.png" alt="Rolefield.ai" width={1527} height={406} priority />
+          <Image className={styles.logoWide} src="/rolefield-logo-horizontal.png" alt="Rolefield.ai" width={928} height={179} priority />
+          <Image className={styles.logoCompact} src="/rolefield-logo-compact.png" alt="" width={398} height={243} priority aria-hidden="true" />
         </Link>
         <nav aria-label="Primary navigation">
           <Link href="#products">Products</Link>
@@ -141,7 +142,7 @@ export default function Home() {
       </main>
 
       <footer className={styles.footer}>
-        <div><Image src="/rolefield-logo.png" alt="Rolefield.ai" width={1527} height={406} /><p>Enterprise AI for conversations, physical service and the live world.</p><a href="https://www.ai7lab.net" target="_blank" rel="noopener noreferrer">A product of AI7Lab Tech Evolution Pte. Ltd. ↗</a></div>
+        <div><Image className={styles.footerLogo} src="/rolefield-logo-stacked.png" alt="Rolefield.ai" width={718} height={333} /><p>Enterprise AI for conversations, physical service and the live world.</p><a href="https://www.ai7lab.net" target="_blank" rel="noopener noreferrer">A product of AI7Lab Tech Evolution Pte. Ltd. ↗</a></div>
         <div><span className={styles.mono}>Dubai, UAE</span><a href="mailto:voice@ai7lab.net">voice@ai7lab.net</a></div>
         <div><Link href="/about">About</Link><Link href="/partnerships">Partnerships</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></div>
       </footer>

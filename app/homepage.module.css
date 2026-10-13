@@ -10,7 +10,7 @@
   overflow: hidden;
   color: var(--navy);
   background: var(--white);
-  font-family: var(--font-geist-sans), Arial, sans-serif;
+  font-family: var(--font-rolefield-sans), Arial, sans-serif;
 }
 
 .site * { box-sizing: border-box; }
@@ -30,8 +30,9 @@
   background: rgba(251,253,255,.9);
   backdrop-filter: blur(18px);
 }
-.brand { display: block; width: 142px; }
+.brand { display: block; width: 170px; }
 .brand img { display: block; width: 100%; height: auto; }
+.logoCompact { display: none !important; }
 .nav nav { display: flex; justify-content: center; gap: 26px; color: #506985; font-size: 12px; }
 .nav nav a { position: relative; padding: 28px 0; }
 .nav nav a::after { content: ""; position: absolute; left: 0; right: 100%; bottom: 20px; height: 1px; background: var(--blue); transition: right .25s ease; }
@@ -48,7 +49,7 @@
 .heroSignal::before { width: 1px; height: 285px; }
 .heroSignal::after { width: 285px; height: 1px; }
 .heroContent { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr .55fr; gap: 60px; align-items: end; min-height: 710px; padding: 88px 34px 66px; }
-.hero h1 { max-width: 820px; margin: 20px 0 0; font-size: clamp(66px, 9vw, 116px); font-weight: 400; letter-spacing: -.075em; line-height: .84; }
+.hero h1 { max-width: 900px; margin: 20px 0 0; font-size: clamp(64px, 8.6vw, 112px); font-weight: 440; letter-spacing: -.06em; line-height: .88; }
 .hero h1 span { display: block; color: var(--blue); }
 .heroCopy { max-width: 620px; margin: 34px 0 0; color: #405d7c; font-size: 18px; line-height: 1.6; }
 .heroProof { align-self: end; padding: 24px 0 0 24px; border-left: 1px solid rgba(26,103,211,.28); }
@@ -57,7 +58,7 @@
 
 .film { padding: 100px 34px 110px; color: #eff7ff; background: var(--navy); }
 .sectionHead, .productsIntro, .intelligenceHead, .proofHead { display: grid; grid-template-columns: 1fr .7fr; gap: 50px; align-items: end; margin-bottom: 42px; }
-.sectionHead h2, .productsIntro h2, .intelligenceHead h2, .proofHead h2, .close h2 { margin: 0; font-size: clamp(46px, 6vw, 76px); font-weight: 400; letter-spacing: -.06em; line-height: .95; }
+.sectionHead h2, .productsIntro h2, .intelligenceHead h2, .proofHead h2, .close h2 { margin: 0; font-size: clamp(46px, 6vw, 76px); font-weight: 420; letter-spacing: -.05em; line-height: .98; }
 .sectionHead p { margin: 0; color: #a5bad0; font-size: 14px; line-height: 1.7; }
 .filmStage { position: relative; width: min(100%, 1180px); min-height: 620px; margin-inline: auto; overflow: hidden; border: 1px solid rgba(133,185,229,.18); background: radial-gradient(circle at 25% 18%, rgba(61,151,231,.2), transparent 36%), linear-gradient(rgba(135,183,226,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(135,183,226,.055) 1px, transparent 1px), #0a2341; background-size: auto, 44px 44px, 44px 44px, auto; }
 .filmScene { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0,1fr) 270px; gap: 42px; align-items: center; padding: 48px; opacity: 0; transform: scale(1.018); transition: opacity .7s ease, transform 1.4s ease; pointer-events: none; }
@@ -84,13 +85,13 @@
 .chapter:nth-of-type(even) { grid-template-columns: minmax(0,1.2fr) minmax(0,.8fr); }
 .chapter:nth-of-type(even) .chapterCopy { order: 2; padding: 48px 0 48px 54px; }
 .chapterCopy { display: flex; flex-direction: column; justify-content: center; padding: 48px 54px 48px 0; }
-.chapterCopy h3 { margin: 14px 0 0; font-size: 58px; font-weight: 400; letter-spacing: -.06em; line-height: 1; }
+.chapterCopy h3 { margin: 14px 0 0; font-size: 58px; font-weight: 420; letter-spacing: -.045em; line-height: 1.03; }
 .chapterCopy > p { max-width: 480px; margin: 24px 0 0; color: #58718e; font-size: 16px; line-height: 1.7; }
 .chapterPoints { display: grid; gap: 13px; margin-top: 42px; }
 .chapterPoints span { display: flex; align-items: center; gap: 12px; font-size: 12px; }
 .chapterPoints i { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 16px rgba(26,103,211,.35); }
 .chapterAction { margin-top: 34px; }
-.chapterAction a, .chapterAction button { display: inline-flex; min-height: 46px; align-items: center; gap: 18px; padding: 0 18px; border: 1px solid var(--navy); color: #fff; background: var(--navy); font: 500 11px var(--font-geist-sans),Arial,sans-serif; cursor: pointer; transition: color .2s ease, background .2s ease, transform .2s ease; }
+.chapterAction a, .chapterAction button { display: inline-flex; min-height: 46px; align-items: center; gap: 18px; padding: 0 18px; border: 1px solid var(--navy); color: #fff; background: var(--navy); font: 500 11px var(--font-rolefield-sans),Arial,sans-serif; cursor: pointer; transition: color .2s ease, background .2s ease, transform .2s ease; }
 .chapterAction a:hover, .chapterAction button:hover { color: var(--navy); background: transparent; transform: translateY(-2px); }
 .chapterMedia { position: relative; min-width: 0; overflow: hidden; background: var(--ice); }
 .chapterMedia > img { object-fit: cover; }
@@ -153,7 +154,7 @@
 .aboutMark img { position: relative; z-index: 1; width: min(72%, 300px); height: auto; filter: brightness(0) invert(1) drop-shadow(0 18px 32px rgba(0,10,28,.28)); }
 .aboutMark i { position: absolute; width: 250px; height: 250px; border: 1px solid rgba(112,214,241,.32); border-radius: 50%; animation: modalOrbit 12s linear infinite; }
 .aboutCopy { align-self: center; }
-.aboutCopy h2 { margin: 18px 0 0; font-size: clamp(48px,5.4vw,72px); font-weight: 400; letter-spacing: -.06em; line-height: .95; }
+.aboutCopy h2 { margin: 18px 0 0; font-size: clamp(48px,5.4vw,72px); font-weight: 420; letter-spacing: -.05em; line-height: .98; }
 .aboutCopy p { max-width: 690px; margin: 23px 0 0; color: #58718e; font-size: 15px; line-height: 1.75; }
 .aboutCopy p strong { color: var(--navy); font-weight: 550; }
 .aboutActions { display: flex; gap: 10px; margin-top: 31px; }
@@ -174,7 +175,7 @@
 
 .footer { display: grid; grid-template-columns: 1fr auto auto; gap: 70px; align-items: start; padding: 68px 34px; color: #abc0d3; background: #04152b; font-size: 12px; }
 .footer > div { display: grid; gap: 12px; }
-.footer img { width: 140px; filter: brightness(0) invert(1); }
+.footer img.footerLogo { width: 164px; filter: brightness(0) invert(1); }
 .footer p { max-width: 360px; margin: 5px 0 0; line-height: 1.6; }
 
 .dialogBackdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 22px; overflow-y: auto; background: rgba(3,17,34,.62); backdrop-filter: blur(16px); animation: veilIn .3s ease both; }
@@ -273,7 +274,9 @@
 }
 
 @media (max-width: 520px) {
-  .brand { width: 120px; }
+  .brand { width: 76px; }
+  .logoWide { display: none !important; }
+  .logoCompact { display: block !important; width: 76px !important; }
   .navAction { padding-inline: 11px; }
   .hero h1 { font-size: 58px; }
   .heroContent { padding-top: 62px; }
